@@ -7,15 +7,15 @@ const Select = SelectPrimitive.Root
 const SelectGroup = SelectPrimitive.Group
 const SelectValue = SelectPrimitive.Value
 
-const SelectTrigger = React.forwardRef
-  React.ElementRef<typeof SelectPrimitive.Trigger>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
->(function SelectTrigger({ className, children, ...props }, ref) {
+function SelectTrigger(
+  { className, children, ...props }: React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>,
+  ref: React.ForwardedRef<React.ElementRef<typeof SelectPrimitive.Trigger>>
+) {
   return (
     <SelectPrimitive.Trigger
       ref={ref}
       className={cn(
-        "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+        "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
       {...props}
@@ -26,13 +26,14 @@ const SelectTrigger = React.forwardRef
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   )
-})
-SelectTrigger.displayName = SelectPrimitive.Trigger.displayName
+}
+const SelectTriggerRef = React.forwardRef(SelectTrigger)
+SelectTriggerRef.displayName = SelectPrimitive.Trigger.displayName
 
-const SelectContent = React.forwardRef
-  React.ElementRef<typeof SelectPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
->(function SelectContent({ className, children, position = "popper", ...props }, ref) {
+function SelectContent(
+  { className, children, position = "popper", ...props }: React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>,
+  ref: React.ForwardedRef<React.ElementRef<typeof SelectPrimitive.Content>>
+) {
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
@@ -50,16 +51,18 @@ const SelectContent = React.forwardRef
       </SelectPrimitive.Content>
     </SelectPrimitive.Portal>
   )
-})
-SelectContent.displayName = SelectPrimitive.Content.displayName
+}
+const SelectContentRef = React.forwardRef(SelectContent)
+SelectContentRef.displayName = SelectPrimitive.Content.displayName
 
-const SelectItem = React.forwardRef
-  React.ElementRef<typeof SelectPrimitive.Item>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
->(function SelectItem({ className, children, ...props }, ref) {
+function SelectItem(
+  { className, children, value, ...props }: React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>,
+  ref: React.ForwardedRef<React.ElementRef<typeof SelectPrimitive.Item>>
+) {
   return (
     <SelectPrimitive.Item
       ref={ref}
+      value={value}
       className={cn(
         "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         className
@@ -74,13 +77,14 @@ const SelectItem = React.forwardRef
       <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
     </SelectPrimitive.Item>
   )
-})
-SelectItem.displayName = SelectPrimitive.Item.displayName
+}
+const SelectItemRef = React.forwardRef(SelectItem)
+SelectItemRef.displayName = SelectPrimitive.Item.displayName
 
-const SelectLabel = React.forwardRef
-  React.ElementRef<typeof SelectPrimitive.Label>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Label>
->(function SelectLabel({ className, ...props }, ref) {
+function SelectLabel(
+  { className, ...props }: React.ComponentPropsWithoutRef<typeof SelectPrimitive.Label>,
+  ref: React.ForwardedRef<React.ElementRef<typeof SelectPrimitive.Label>>
+) {
   return (
     <SelectPrimitive.Label
       ref={ref}
@@ -88,11 +92,16 @@ const SelectLabel = React.forwardRef
       {...props}
     />
   )
-})
-SelectLabel.displayName = SelectPrimitive.Label.displayName
+}
+const SelectLabelRef = React.forwardRef(SelectLabel)
+SelectLabelRef.displayName = SelectPrimitive.Label.displayName
 
 export {
-  Select, SelectGroup, SelectValue,
-  SelectTrigger, SelectContent,
-  SelectItem, SelectLabel
+  Select,
+  SelectGroup,
+  SelectValue,
+  SelectTriggerRef as SelectTrigger,
+  SelectContentRef as SelectContent,
+  SelectItemRef as SelectItem,
+  SelectLabelRef as SelectLabel,
 }

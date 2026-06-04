@@ -28,14 +28,14 @@ export function useAuth() {
   }, [])
 
   const signInWithMicrosoft = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: 'azure',
-      options: {
-        scopes: 'openid email profile',
-        redirectTo: 'https://vitejsvite5ubonzvi-zijl--5173--bd880c29.local-credentialless.webcontainer.io',
-      }
-    })
-  }
+  await supabase.auth.signInWithOAuth({
+    provider: 'azure',
+    options: {
+      scopes: 'openid email profile',
+      redirectTo: 'https://zany-goldfish-gx45jv969qqx29rgg-5173.app.github.dev',
+    }
+  })
+}
 
   const signOut = async () => {
     await supabase.auth.signOut()

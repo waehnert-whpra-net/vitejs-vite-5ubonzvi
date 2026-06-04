@@ -2,10 +2,12 @@ import * as React from "react"
 import * as LabelPrimitive from "@radix-ui/react-label"
 import { cn } from "@/lib/utils"
 
-const Label = React.forwardRef
-  React.ElementRef<typeof LabelPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root>
->(function Label({ className, ...props }, ref) {
+type LabelProps = React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root>
+
+function LabelComponent(
+  { className, ...props }: LabelProps,
+  ref: React.ForwardedRef<React.ElementRef<typeof LabelPrimitive.Root>>
+) {
   return (
     <LabelPrimitive.Root
       ref={ref}
@@ -16,7 +18,9 @@ const Label = React.forwardRef
       {...props}
     />
   )
-})
-Label.displayName = "Label"
+}
+
+const Label = React.forwardRef(LabelComponent)
+Label.displayName = LabelPrimitive.Root.displayName
 
 export { Label }
