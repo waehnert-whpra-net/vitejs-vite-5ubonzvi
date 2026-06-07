@@ -5,6 +5,13 @@ import Layout from '@/components/Layout'
 import Login from '@/pages/Login'
 import ContactList from '@/pages/ContactList'
 import ContactForm from '@/pages/ContactForm'
+import AreaList from '@/modules/properties/pages/AreaList'
+import AreaForm from '@/modules/properties/pages/AreaForm'
+import UnitList from '@/modules/properties/pages/UnitList'
+import UnitForm from '@/modules/properties/pages/UnitForm'
+import UsageList from '@/modules/properties/pages/UsageList'
+import UsageForm from '@/modules/properties/pages/UsageForm'
+import CalendarView from '@/modules/calendar/pages/CalendarView'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -38,10 +45,25 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Navigate to="/contacts" replace />} />
+          {/* Kontakte */}
           <Route path="contacts" element={<ContactList />} />
           <Route path="contacts/new" element={<ContactForm />} />
           <Route path="contacts/:id/edit" element={<ContactForm />} />
+          {/* Bereiche */}
+          <Route path="properties/areas" element={<AreaList />} />
+          <Route path="properties/areas/new" element={<AreaForm />} />
+          <Route path="properties/areas/:id/edit" element={<AreaForm />} />
+          {/* Einheiten */}
+          <Route path="properties/units" element={<UnitList />} />
+          <Route path="properties/units/new" element={<UnitForm />} />
+          <Route path="properties/units/:id/edit" element={<UnitForm />} />
+          {/* Nutzungen */}
+          <Route path="properties/usages" element={<UsageList />} />
+          <Route path="properties/usages/new" element={<UsageForm />} />
+          <Route path="properties/usages/:id/edit" element={<UsageForm />} />
           <Route path="*" element={<Navigate to="/contacts" replace />} />
+          {/* Kalender */}
+          <Route path="calendar" element={<CalendarView />} />
         </Route>
       </Routes>
     </BrowserRouter>

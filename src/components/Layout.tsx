@@ -1,7 +1,7 @@
 import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
-import { Users, LogOut, Menu, X } from 'lucide-react'
+import { Users, LogOut, Menu, X, Home, CalendarDays } from 'lucide-react'
 import { useState } from 'react'
 
 export default function Layout() {
@@ -12,6 +12,10 @@ export default function Layout() {
 
   const navItems = [
     { path: '/contacts', label: 'Kontakte', icon: Users },
+    { path: '/properties/areas', label: 'Bereiche', icon: Home },
+    { path: '/properties/units', label: 'Einheiten', icon: Home },
+    { path: '/properties/usages', label: 'Nutzungen', icon: CalendarDays },
+    { path: '/calendar', label: 'Kalender', icon: CalendarDays },
   ]
 
   const isActive = (path: string) => location.pathname.startsWith(path)
@@ -21,12 +25,17 @@ export default function Layout() {
       {/* Topbar */}
       <header className="bg-white border-b sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          {/* Logo */}
+          {/* Logo + Firmenname */}
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
               <Users className="h-4 w-4 text-white" />
             </div>
-            <span className="font-bold text-gray-900 text-lg">MyApp</span>
+            <div className="flex flex-col leading-tight">
+              <span className="font-bold text-gray-900 text-lg leading-none">FLOX</span>
+              <span className="text-xs text-gray-400 leading-none mt-0.5">
+                natureandfriends am Üdersee GmbH
+              </span>
+            </div>
           </div>
 
           {/* Desktop Navigation */}
@@ -62,7 +71,6 @@ export default function Layout() {
             >
               <LogOut className="h-4 w-4" />
             </Button>
-            {/* Mobile Menu Button */}
             <Button
               variant="ghost"
               size="icon"
