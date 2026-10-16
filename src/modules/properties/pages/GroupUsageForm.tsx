@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   useGroupUsage, useSaveGroupUsage, useSavePropertyUsage, useDeletePropertyUsage,
-  useAvailableUnits, type GroupUsage
+  useAvailableUnits,
 } from '@/modules/properties/hooks/useProperties'
 import { useContacts } from '@/hooks/useContacts'
 import { Button } from '@/components/ui/button'
@@ -11,9 +11,11 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
-  ArrowLeft, Save, Users, CalendarDays, Building2,
+  ArrowLeft, Save, CalendarDays, Building2,
   Link, FolderOpen, Check, X, Bed
 } from 'lucide-react'
+
+type UnitPersons = { adults: number; children: number }
 
 export default function GroupUsageForm() {
   const navigate = useNavigate()
@@ -36,7 +38,8 @@ export default function GroupUsageForm() {
     sharepoint_url: '',
   })
 
-  const [selectedUnitIds, setSelectedUnitIds] = useState<Set<string>>(new Set())
+  // Ausgewählte Einheiten: Map unitId → { adults, children }
+  const [unitPersons, setUnitPersons] = useState<Map<string, UnitPersons>>(new Map())
   const [saving, setSaving] = useState(false)
 
   const { data: availableUnits } = useAvailableUnits(
@@ -55,18 +58,40 @@ export default function GroupUsageForm() {
         notes: existing.notes ?? '',
         sharepoint_url: existing.sharepoint_url ?? '',
       })
-      const ids = new Set<string>(
-        (existing.usages ?? []).map(u => u.unit_id).filter(Boolean) as string[]
-      )
-      setSelectedUnitIds(ids)
+      const map = new Map<string, UnitPersons>()
+      for (const u of existing.usages ?? []) {
+        if (u.unit_id) {
+          map.set(u.unit_id, {
+            adults: u.adults_count ?? 0,
+            children: u.children_count ?? 0,
+          })
+        }
+      }
+      setUnitPersons(map)
     }
   }, [existing])
 
-  const toggleUnit = (unitId: string) => {
-    setSelectedUnitIds(prev => {
-      const next = new Set(prev)
-      if (next.has(unitId)) next.delete(unitId)
-      else next.add(unitId)
+  // Einheit auswählen: Standardwert adults = max_persons der Einheit
+  const toggleUnit = (unit: any) => {
+    setUnitPersons(prev => {
+      const next = new Map(prev)
+      if (next.has(unit.id)) {
+        next.delete(unit.id)
+      } else {
+        next.set(unit.id, {
+          adults: unit.max_persons ?? 0,
+          children: 0,
+        })
+      }
+      return next
+    })
+  }
+
+  const setPersons = (unitId: string, field: 'adults' | 'children', value: number) => {
+    setUnitPersons(prev => {
+      const next = new Map(prev)
+      const cur = next.get(unitId)
+      if (cur) next.set(unitId, { ...cur, [field]: Math.max(0, value) })
       return next
     })
   }
@@ -91,20 +116,29 @@ export default function GroupUsageForm() {
         sharepoint_url: form.sharepoint_url || null,
       })
 
-      // Bestehende Einzel-Nutzungen dieser Gruppe ermitteln
       const existingUsages = existing?.usages ?? []
       const existingUnitIds = new Set(existingUsages.map(u => u.unit_id).filter(Boolean) as string[])
+      const selectedUnitIds = new Set(unitPersons.keys())
 
-      // Entfernte Einheiten löschen
+      // Entfernte Einheiten deaktivieren
       for (const u of existingUsages) {
         if (u.unit_id && !selectedUnitIds.has(u.unit_id)) {
           await deleteUsage.mutateAsync(u.id)
         }
       }
 
-      // Neue Einheiten anlegen
-      for (const unitId of selectedUnitIds) {
-        if (!existingUnitIds.has(unitId)) {
+      // Neue Einheiten anlegen / bestehende aktualisieren
+      for (const [unitId, persons] of unitPersons) {
+        const existingUsage = existingUsages.find(u => u.unit_id === unitId)
+        if (existingUsage) {
+          // Personenzahlen aktualisieren
+          await saveUsage.mutateAsync({
+            id: existingUsage.id,
+            adults_count: persons.adults,
+            children_count: persons.children,
+          } as any)
+        } else {
+          // Neu anlegen
           await saveUsage.mutateAsync({
             unit_id: unitId,
             contact_id: form.contact_id || null,
@@ -112,8 +146,8 @@ export default function GroupUsageForm() {
             date_from: form.date_from,
             date_to: form.date_to,
             is_unlimited: false,
-            adults_count: 0,
-            children_count: 0,
+            adults_count: persons.adults,
+            children_count: persons.children,
             is_active: true,
             show_in_calendar: true,
           } as any)
@@ -127,6 +161,7 @@ export default function GroupUsageForm() {
   }
 
   const dateRangeOk = form.date_from && form.date_to && form.date_from <= form.date_to
+  const selectedCount = unitPersons.size
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -248,8 +283,8 @@ export default function GroupUsageForm() {
               <CardTitle className="text-base flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-indigo-500" />
                 Einheiten für dieses Event
-                {selectedUnitIds.size > 0 && (
-                  <Badge className="bg-indigo-500 text-white">{selectedUnitIds.size} gewählt</Badge>
+                {selectedCount > 0 && (
+                  <Badge className="bg-indigo-500 text-white">{selectedCount} gewählt</Badge>
                 )}
               </CardTitle>
               {!dateRangeOk && (
@@ -263,61 +298,117 @@ export default function GroupUsageForm() {
               {dateRangeOk && availableUnits && (
                 <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
                   {availableUnits.map((unit: any) => {
-                    const selected = selectedUnitIds.has(unit.id)
+                    const persons = unitPersons.get(unit.id)
+                    const selected = !!persons
                     const available = unit.is_available
+
                     return (
-                      <button
+                      <div
                         key={unit.id}
-                        onClick={() => available && toggleUnit(unit.id)}
-                        disabled={!available && !selected}
                         className={`
-                          w-full text-left rounded-lg border p-3 transition-all
+                          rounded-lg border transition-all
                           ${selected
                             ? 'border-indigo-400 bg-indigo-50 ring-1 ring-indigo-400'
                             : available
-                              ? 'border-gray-200 hover:border-indigo-300 hover:bg-gray-50 cursor-pointer'
-                              : 'border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed'
+                              ? 'border-gray-200 hover:border-indigo-300 hover:bg-gray-50'
+                              : 'border-gray-100 bg-gray-50 opacity-50'
                           }
                         `}
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-3 h-3 rounded-full flex-shrink-0"
-                              style={{ backgroundColor: unit.color ?? '#94a3b8' }}
-                            />
-                            <span className="font-medium text-sm">
-                              {unit.name ?? unit.short_code ?? '–'}
-                            </span>
-                            {unit.short_code && unit.name && (
-                              <span className="text-xs text-gray-400 font-mono">{unit.short_code}</span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {unit.max_persons && (
-                              <span className="flex items-center gap-1 text-xs text-gray-500" title="Betten / max. Aufbettung">
-                                <Bed className="h-3 w-3" />
-                                {unit.max_persons}
-                                {unit.max_extra_beds
-                                  ? <span className="text-gray-400">+{unit.max_extra_beds}</span>
-                                  : null}
+                        {/* Klickbereich: Kopfzeile */}
+                        <button
+                          onClick={() => available && toggleUnit(unit)}
+                          disabled={!available && !selected}
+                          className="w-full text-left p-3"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-3 h-3 rounded-full flex-shrink-0"
+                                style={{ backgroundColor: unit.color ?? '#94a3b8' }}
+                              />
+                              <span className="font-medium text-sm">
+                                {unit.name ?? unit.short_code ?? '–'}
                               </span>
-                            )}
-                            {selected
-                              ? <Check className="h-4 w-4 text-indigo-500" />
-                              : !available
-                                ? <X className="h-4 w-4 text-red-400" />
-                                : null
-                            }
+                              {unit.short_code && unit.name && (
+                                <span className="text-xs text-gray-400 font-mono">{unit.short_code}</span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {unit.max_persons && (
+                                <span className="flex items-center gap-1 text-xs text-gray-500" title="Betten / max. Aufbettung">
+                                  <Bed className="h-3 w-3" />
+                                  {unit.max_persons}
+                                  {unit.max_extra_beds
+                                    ? <span className="text-gray-400">+{unit.max_extra_beds}</span>
+                                    : null}
+                                </span>
+                              )}
+                              {selected
+                                ? <Check className="h-4 w-4 text-indigo-500" />
+                                : !available
+                                  ? <X className="h-4 w-4 text-red-400" />
+                                  : null
+                              }
+                            </div>
                           </div>
-                        </div>
-                        {unit.area && (
-                          <p className="text-xs text-gray-400 mt-0.5 ml-5">{unit.area.name}</p>
+                          {unit.area && (
+                            <p className="text-xs text-gray-400 mt-0.5 ml-5">{unit.area.name}</p>
+                          )}
+                          {!available && !selected && (
+                            <p className="text-xs text-red-400 mt-0.5 ml-5">Im Zeitraum belegt</p>
+                          )}
+                        </button>
+
+                        {/* Personenanzahl — nur wenn ausgewählt */}
+                        {selected && persons && (
+                          <div
+                            className="px-3 pb-3 pt-0 border-t border-indigo-200 mt-0"
+                            onClick={e => e.stopPropagation()}
+                          >
+                            <div className="flex items-center gap-3 mt-2">
+                              {/* Erwachsene */}
+                              <div className="flex items-center gap-1.5 flex-1">
+                                <span className="text-xs text-gray-500 w-20 shrink-0">Erwachsene</span>
+                                <button
+                                  onClick={() => setPersons(unit.id, 'adults', persons.adults - 1)}
+                                  className="w-6 h-6 rounded border border-gray-300 text-gray-600 hover:bg-gray-100 text-sm font-bold leading-none flex items-center justify-center"
+                                >−</button>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={persons.adults}
+                                  onChange={e => setPersons(unit.id, 'adults', parseInt(e.target.value) || 0)}
+                                  className="w-10 text-center text-sm border border-gray-300 rounded h-6 px-1"
+                                />
+                                <button
+                                  onClick={() => setPersons(unit.id, 'adults', persons.adults + 1)}
+                                  className="w-6 h-6 rounded border border-gray-300 text-gray-600 hover:bg-gray-100 text-sm font-bold leading-none flex items-center justify-center"
+                                >+</button>
+                              </div>
+                              {/* Kinder */}
+                              <div className="flex items-center gap-1.5 flex-1">
+                                <span className="text-xs text-gray-500 w-12 shrink-0">Kinder</span>
+                                <button
+                                  onClick={() => setPersons(unit.id, 'children', persons.children - 1)}
+                                  className="w-6 h-6 rounded border border-gray-300 text-gray-600 hover:bg-gray-100 text-sm font-bold leading-none flex items-center justify-center"
+                                >−</button>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={persons.children}
+                                  onChange={e => setPersons(unit.id, 'children', parseInt(e.target.value) || 0)}
+                                  className="w-10 text-center text-sm border border-gray-300 rounded h-6 px-1"
+                                />
+                                <button
+                                  onClick={() => setPersons(unit.id, 'children', persons.children + 1)}
+                                  className="w-6 h-6 rounded border border-gray-300 text-gray-600 hover:bg-gray-100 text-sm font-bold leading-none flex items-center justify-center"
+                                >+</button>
+                              </div>
+                            </div>
+                          </div>
                         )}
-                        {!available && !selected && (
-                          <p className="text-xs text-red-400 mt-0.5 ml-5">Im Zeitraum belegt</p>
-                        )}
-                      </button>
+                      </div>
                     )
                   })}
                 </div>
@@ -341,7 +432,7 @@ export default function GroupUsageForm() {
           className="gap-2"
         >
           <Save className="h-4 w-4" />
-          {saving ? 'Wird gespeichert...' : `Event speichern (${selectedUnitIds.size} Einheiten)`}
+          {saving ? 'Wird gespeichert...' : `Event speichern (${selectedCount} Einheiten)`}
         </Button>
       </div>
     </div>
