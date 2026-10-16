@@ -284,3 +284,144 @@ export function useDeletePropertyUsage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['property_usages'] })
   })
 }
+
+// ─── Gruppennutzungen ────────────────────────────────────────────────────────
+
+export type GroupUsage = {
+  id: string
+  name: string
+  contact_id: string | null
+  date_from: string | null
+  date_to: string | null
+  notes: string | null
+  sharepoint_url: string | null
+  storage_path: string | null
+  is_active: boolean
+  created_at: string
+  contact?: {
+    id: string
+    first_name: string | null
+    last_name: string | null
+    company_name: string | null
+    is_company: boolean
+  }
+  usages?: PropertyUsage[]
+}
+
+export function useGroupUsages() {
+  return useQuery({
+    queryKey: ['group_usages'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('group_usages')
+        .select(`
+          *,
+          contact:contacts(id, first_name, last_name, company_name, is_company),
+          usages:property_usages(
+            *,
+            unit:property_units(id, name, short_code, max_persons, color)
+          )
+        `)
+        .eq('is_active', true)
+        .order('date_from', { ascending: false })
+      if (error) throw error
+      return data as unknown as GroupUsage[]
+    }
+  })
+}
+
+export function useGroupUsage(id: string) {
+  return useQuery({
+    queryKey: ['group_usage', id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('group_usages')
+        .select(`
+          *,
+          contact:contacts(id, first_name, last_name, company_name, is_company),
+          usages:property_usages(
+            *,
+            unit:property_units(id, name, short_code, max_persons, color)
+          )
+        `)
+        .eq('id', id)
+        .single()
+      if (error) throw error
+      return data as unknown as GroupUsage
+    },
+    enabled: !!id
+  })
+}
+
+export function useSaveGroupUsage() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (group: Partial<GroupUsage> & { id?: string }) => {
+      const { contact, usages, ...data } = group as any
+      if (data.id) {
+        const { error } = await supabase
+          .from('group_usages').update(data).eq('id', data.id)
+        if (error) throw error
+        return data.id as string
+      } else {
+        const { data: inserted, error } = await supabase
+          .from('group_usages').insert(data).select('id').single()
+        if (error) throw error
+        return inserted.id as string
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['group_usages'] })
+      queryClient.invalidateQueries({ queryKey: ['group_usage'] })
+    }
+  })
+}
+
+export function useDeleteGroupUsage() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('group_usages').update({ is_active: false }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['group_usages'] })
+  })
+}
+
+// Verfügbare Einheiten für einen Zeitraum (für Gruppennutzung)
+export function useAvailableUnits(dateFrom: string | null, dateTo: string | null, excludeGroupId?: string) {
+  return useQuery({
+    queryKey: ['available_units', dateFrom, dateTo, excludeGroupId],
+    queryFn: async () => {
+      // Alle aktiven Einheiten laden
+      const { data: units, error: unitError } = await supabase
+        .from('property_units')
+        .select('*, area:property_areas(id, name, color)')
+        .eq('is_active', true)
+        .eq('is_rentable', true)
+        .order('nr')
+      if (unitError) throw unitError
+
+      // Belegte Einheiten im Zeitraum ermitteln
+      let usageQuery = supabase
+        .from('property_usages')
+        .select('unit_id')
+        .eq('is_active', true)
+        .not('unit_id', 'is', null)
+        .or(`date_from.lte.${dateTo},date_to.gte.${dateFrom}`)
+      if (excludeGroupId) {
+        usageQuery = usageQuery.neq('group_usage_id', excludeGroupId)
+      }
+      const { data: occupied, error: occError } = await usageQuery
+      if (occError) throw occError
+
+      const occupiedIds = new Set((occupied ?? []).map((u: any) => u.unit_id))
+      return (units ?? []).map((u: any) => ({
+        ...u,
+        is_available: !occupiedIds.has(u.id)
+      }))
+    },
+    enabled: !!dateFrom && !!dateTo
+  })
+}

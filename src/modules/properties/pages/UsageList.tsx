@@ -4,7 +4,7 @@ import { usePropertyUsages, useDeletePropertyUsage } from '@/modules/properties/
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
-import { Plus, Pencil, Trash2, Search, CalendarDays, Users, Infinity } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, CalendarDays, Users, Infinity, UsersRound } from 'lucide-react'
 
 export default function UsageList() {
   const navigate = useNavigate()
@@ -110,6 +110,14 @@ export default function UsageList() {
           >
             <Infinity className="h-4 w-4 mr-1.5" />
             Unbefristet {hideUnlimited ? 'ausgeblendet' : 'anzeigen'}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => navigate('/properties/group-usages/new')}
+            className="gap-2 border-indigo-300 text-indigo-700 hover:bg-indigo-50"
+          >
+            <UsersRound className="h-4 w-4" />
+            Neue Gruppennutzung
           </Button>
           <Button onClick={() => navigate('/properties/usages/new')} className="gap-2">
             <Plus className="h-4 w-4" />
