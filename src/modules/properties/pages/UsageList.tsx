@@ -117,7 +117,7 @@ export default function UsageList() {
             className="gap-2 border-indigo-300 text-indigo-700 hover:bg-indigo-50"
           >
             <UsersRound className="h-4 w-4" />
-            Neue Gruppennutzung
+            Neues Gastro-Event
           </Button>
           <Button onClick={() => navigate('/properties/usages/new')} className="gap-2">
             <Plus className="h-4 w-4" />

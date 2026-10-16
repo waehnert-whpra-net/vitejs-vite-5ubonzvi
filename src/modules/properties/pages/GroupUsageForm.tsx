@@ -17,7 +17,7 @@ import {
 
 export default function GroupUsageForm() {
   const navigate = useNavigate()
-  const { id } = useParams<{ id: string }>()
+  const { id } = useParams<{ id?: string }>()
   const isEdit = !!id && id !== 'new'
 
   const { data: existing } = useGroupUsage(id ?? '')
@@ -137,9 +137,9 @@ export default function GroupUsageForm() {
         </Button>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            {isEdit ? 'Gruppennutzung bearbeiten' : 'Neue Gruppennutzung'}
+            {isEdit ? 'Gastro-Event bearbeiten' : 'Neues Gastro-Event'}
           </h1>
-          <p className="text-sm text-gray-500">Mehrere Einheiten für eine Gruppe buchen</p>
+          <p className="text-sm text-gray-500">Mehrere Einheiten für ein Gastro-Event buchen</p>
         </div>
       </div>
 
@@ -147,14 +147,14 @@ export default function GroupUsageForm() {
         {/* Linke Spalte: Stammdaten */}
         <div className="space-y-4">
           <Card>
-            <CardHeader><CardTitle className="text-base">Gruppeninformationen</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Event-Informationen</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label>Gruppenname *</Label>
+                <Label>Event-Name *</Label>
                 <Input
                   value={form.name}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  placeholder="z.B. Familie Müller – Pfingsten 2026"
+                  placeholder="z.B. Hochzeit Müller – Pfingsten 2026"
                   className="mt-1"
                 />
               </div>
@@ -247,7 +247,7 @@ export default function GroupUsageForm() {
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-indigo-500" />
-                Einheiten auswählen
+                Einheiten für dieses Event
                 {selectedUnitIds.size > 0 && (
                   <Badge className="bg-indigo-500 text-white">{selectedUnitIds.size} gewählt</Badge>
                 )}
@@ -295,9 +295,12 @@ export default function GroupUsageForm() {
                           </div>
                           <div className="flex items-center gap-2">
                             {unit.max_persons && (
-                              <span className="flex items-center gap-1 text-xs text-gray-500">
+                              <span className="flex items-center gap-1 text-xs text-gray-500" title="Betten / max. Aufbettung">
                                 <Bed className="h-3 w-3" />
                                 {unit.max_persons}
+                                {unit.max_extra_beds
+                                  ? <span className="text-gray-400">+{unit.max_extra_beds}</span>
+                                  : null}
                               </span>
                             )}
                             {selected
@@ -338,7 +341,7 @@ export default function GroupUsageForm() {
           className="gap-2"
         >
           <Save className="h-4 w-4" />
-          {saving ? 'Wird gespeichert...' : `Gruppe speichern (${selectedUnitIds.size} Einheiten)`}
+          {saving ? 'Wird gespeichert...' : `Event speichern (${selectedUnitIds.size} Einheiten)`}
         </Button>
       </div>
     </div>

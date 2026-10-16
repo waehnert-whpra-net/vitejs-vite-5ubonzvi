@@ -397,7 +397,7 @@ export function useAvailableUnits(dateFrom: string | null, dateTo: string | null
       // Alle aktiven Einheiten laden
       const { data: units, error: unitError } = await supabase
         .from('property_units')
-        .select('*, area:property_areas(id, name, color)')
+        .select('id, nr, name, short_code, color, max_persons, max_extra_beds, area:property_areas(id, name, color)')
         .eq('is_active', true)
         .eq('is_rentable', true)
         .order('nr')
