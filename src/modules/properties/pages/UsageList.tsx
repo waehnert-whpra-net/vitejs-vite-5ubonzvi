@@ -4,12 +4,13 @@ import { usePropertyUsages, useDeletePropertyUsage } from '@/modules/properties/
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
-import { Plus, Pencil, Trash2, Search, CalendarDays, Users } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, CalendarDays, Users, Infinity } from 'lucide-react'
 
 export default function UsageList() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | 'current' | 'future'>('all')
+  const [hideUnlimited, setHideUnlimited] = useState(false)
   const { data: usages, isLoading } = usePropertyUsages()
   const deleteUsage = useDeletePropertyUsage()
 
@@ -37,6 +38,8 @@ export default function UsageList() {
     )
 
     if (!matchesSearch) return false
+
+    if (hideUnlimited && u.is_unlimited) return false
 
     if (filter === 'current') return getUsageState(u) === 'current'
     if (filter === 'future') return getUsageState(u) === 'future'
@@ -98,6 +101,15 @@ export default function UsageList() {
             onClick={() => setFilter(filter === 'future' ? 'all' : 'future')}
           >
             Zukünftig genutzt
+          </Button>
+          <Button
+            variant={hideUnlimited ? 'default' : 'outline'}
+            onClick={() => setHideUnlimited(v => !v)}
+            className={hideUnlimited ? 'bg-gray-600 hover:bg-gray-700' : ''}
+            title="Unbefristete Nutzungen ausblenden"
+          >
+            <Infinity className="h-4 w-4 mr-1.5" />
+            Unbefristet {hideUnlimited ? 'ausgeblendet' : 'anzeigen'}
           </Button>
           <Button onClick={() => navigate('/properties/usages/new')} className="gap-2">
             <Plus className="h-4 w-4" />
