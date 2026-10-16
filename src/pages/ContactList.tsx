@@ -10,11 +10,46 @@ import { Card, CardContent } from '@/components/ui/card'
 import ContactImport from '@/components/ContactImport'
 import {
   Search, Plus, Phone, Mail, Building2, User,
-  Pencil, Trash2, Upload,
+  Pencil, Trash2, Upload, Download,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight
 } from 'lucide-react'
 
 const PAGE_SIZE = 50
+
+const CSV_TEMPLATE_HEADERS = [
+  'is_company', 'salutation', 'title', 'first_name', 'last_name', 'company_name',
+  'legal_form', 'register_info', 'position', 'department', 'employee_number',
+  'email_main', 'phone_main', 'mobile_main', 'website', 'birthday',
+  'tax_number', 'vat_id', 'customer_number', 'supplier_number', 'notes', 'tags',
+  'visibility', 'address_type', 'street', 'street_number', 'address_extra',
+  'postal_code', 'city', 'state', 'country'
+]
+
+const CSV_TEMPLATE_EXAMPLE_ROWS = [
+  ['nein','Herr','Dr.','Max','Mustermann','','','','','Geschäftsführung','Verwaltung','12345','max.mustermann@example.com','+49 30 1234567','+49 170 1234567','https://example.com','1980-01-31','','','','','Beispiel-Notiz','Tag1,Tag2','public','Hauptadresse','Musterstraße','1','','12345','Berlin','Berlin','Deutschland'],
+  ['ja','','','','','Beispiel GmbH','GmbH','HRB 12345','','','','info@beispiel-gmbh.de','+49 30 7654321','','https://beispiel-gmbh.de','','DE123456789','DE987654321','K-1001','L-2001','Lieferant für ...','Lieferant','public','Hauptadresse','Beispielweg','2','','54321','München','Bayern','Deutschland'],
+]
+
+function downloadCsvTemplate() {
+  const escapeCell = (val: string) =>
+    /[";\n]/.test(val) ? `"${val.replace(/"/g, '""')}"` : val
+
+  const lines = [
+    CSV_TEMPLATE_HEADERS.join(';'),
+    ...CSV_TEMPLATE_EXAMPLE_ROWS.map(row => row.map(escapeCell).join(';'))
+  ]
+  const csvContent = '\uFEFF' + lines.join('\r\n')
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'kontakte_beispiel_import.csv'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
 
 export default function ContactList() {
   const navigate = useNavigate()
@@ -58,6 +93,17 @@ export default function ContactList() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Button
+              onClick={downloadCsvTemplate}
+              variant="outline"
+              className="gap-2"
+              title="Beispiel-CSV mit allen Spalten herunterladen"
+            >
+              <Download className="h-4 w-4" />
+              Beispiel-CSV
+            </Button>
+          )}
           {isAdmin && (
             <Button
               onClick={() => setShowImport(true)}

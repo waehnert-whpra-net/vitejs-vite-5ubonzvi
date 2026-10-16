@@ -8,14 +8,12 @@ export function useAuth() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Aktuelle Session laden
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
       setLoading(false)
     })
 
-    // Auth-Änderungen beobachten
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setSession(session)
@@ -28,18 +26,35 @@ export function useAuth() {
   }, [])
 
   const signInWithMicrosoft = async () => {
-  await supabase.auth.signInWithOAuth({
-    provider: 'azure',
-    options: {
-      scopes: 'openid email profile',
-      redirectTo: 'https://zany-goldfish-gx45jv969qqx29rgg-5173.app.github.dev',
-    }
-  })
-}
+    await supabase.auth.signInWithOAuth({
+      provider: 'azure',
+      options: {
+        scopes: 'openid email profile',
+        redirectTo: window.location.origin,
+      }
+    })
+  }
+
+  const signInWithEmail = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) throw error
+  }
+
+  const signUpWithEmail = async (email: string, password: string, fullName?: string) => {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: fullName || null },
+        emailRedirectTo: window.location.origin,
+      }
+    })
+    if (error) throw error
+  }
 
   const signOut = async () => {
     await supabase.auth.signOut()
   }
 
-  return { user, session, loading, signInWithMicrosoft, signOut }
+  return { user, session, loading, signInWithMicrosoft, signInWithEmail, signUpWithEmail, signOut }
 }

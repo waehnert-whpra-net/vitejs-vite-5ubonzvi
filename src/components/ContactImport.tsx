@@ -18,11 +18,11 @@ type Props = {
 const CHUNK_SIZE = 50 // Zeilen pro Batch
 
 function parseCSV(text: string): { headers: string[]; rows: string[][] } {
-  const lines = text.split('\n').filter(l => l.trim())
+  const lines = text.replace(/^\uFEFF/, '').split('\n').filter(l => l.trim())
   if (lines.length < 2) return { headers: [], rows: [] }
   const headers = lines[0].split(';').map(h => h.trim().toLowerCase().replace(/"/g, ''))
   const rows = lines.slice(1).map(line =>
-    line.split(';').map(v => v.trim().replace(/"/g, ''))
+    line.split(';').map(v => v.trim().replace(/^"|"$/g, '').replace(/""/g, '"'))
   )
   return { headers, rows }
 }
@@ -33,37 +33,78 @@ function parseCSVRow(headers: string[], values: string[]) {
   return row
 }
 
+// Helper: liest den ersten vorhandenen Wert aus mehreren möglichen Spaltennamen
+function pick(row: Record<string, string>, ...keys: string[]): string | null {
+  for (const key of keys) {
+    const val = row[key]
+    if (val) return val
+  }
+  return null
+}
+
+function toBool(val: string | null): boolean {
+  if (!val) return false
+  const v = val.toLowerCase().trim()
+  return v === 'ja' || v === 'true' || v === '1' || v === 'yes' || v === 'company'
+}
+
 function rowToContact(row: Record<string, string>) {
   return {
-    is_company: row['firma'] === 'ja' || row['is_company'] === 'true',
-    first_name: row['vorname'] || row['first_name'] || null,
-    last_name: row['nachname'] || row['last_name'] || null,
-    company_name: row['firmenname'] || row['company_name'] || null,
-    email_main: row['email'] || row['email_main'] || null,
-    phone_main: row['telefon'] || row['phone_main'] || null,
-    mobile_main: row['mobil'] || row['mobile_main'] || null,
-    position: row['position'] || null,
-    department: row['abteilung'] || row['department'] || null,
-    website: row['website'] || null,
-    tax_number: row['steuernummer'] || row['tax_number'] || null,
-    vat_id: row['ust_id'] || row['vat_id'] || null,
-    customer_number: row['kundennummer'] || row['customer_number'] || null,
-    notes: row['notizen'] || row['notes'] || null,
+    is_company: toBool(pick(row, 'firma', 'is_company')),
+
+    // Namen / Anrede
+    salutation_id: null, // Anrede per Name wird hier nicht aufgelöst (separate Tabelle salutations)
+    title: pick(row, 'titel', 'title'),
+    first_name: pick(row, 'vorname', 'first_name'),
+    last_name: pick(row, 'nachname', 'last_name'),
+    company_name: pick(row, 'firmenname', 'company_name'),
+
+    // Rechtliches
+    legal_form: pick(row, 'rechtsform', 'legal_form'),
+    register_info: pick(row, 'registereintrag', 'register_info'),
+
+    // Funktion / Personalnummer
+    position: pick(row, 'funktion', 'position'),
+    department: pick(row, 'abteilung', 'department'),
+    employee_number: pick(row, 'pers.-nr.', 'pers_nr', 'personalnummer', 'employee_number'),
+
+    // Kontaktdaten
+    email_main: pick(row, 'email', 'e-mail', 'email_main'),
+    phone_main: pick(row, 'telefon', 'phone_main'),
+    mobile_main: pick(row, 'mobil', 'mobile_main'),
+    website: pick(row, 'website'),
+    birthday: pick(row, 'geburtstag', 'birthday') || null,
+
+    // Steuern / Nummern
+    tax_number: pick(row, 'steuernummer', 'tax_number'),
+    vat_id: pick(row, 'ust_id', 'ust-id', 'vat_id'),
+    customer_number: pick(row, 'kundennummer', 'customer_number'),
+    supplier_number: pick(row, 'lieferantennummer', 'supplier_number'),
+
+    // Sonstiges
+    notes: pick(row, 'notizen', 'notes'),
+    visibility: pick(row, 'sichtbarkeit', 'visibility') || 'public',
+    tags: (() => {
+      const raw = pick(row, 'tags', 'schlagworte')
+      if (!raw) return null
+      return raw.split(',').map(t => t.trim()).filter(Boolean)
+    })(),
   }
 }
 
 function rowToAddress(row: Record<string, string>, contactId: string) {
-  const hasAddress = row['strasse'] || row['street'] || row['ort'] || row['city'] || row['plz']
+  const hasAddress = pick(row, 'strasse', 'straße', 'street', 'ort', 'city', 'plz', 'postal_code')
   if (!hasAddress) return null
   return {
     contact_id: contactId,
-    address_type: 'Haupt',
-    street: row['strasse'] || row['street'] || null,
-    street_number: row['hausnummer'] || row['street_number'] || null,
-    postal_code: row['plz'] || row['postal_code'] || null,
-    city: row['ort'] || row['city'] || null,
-    state: row['bundesland'] || row['state'] || null,
-    country: row['land'] || row['country'] || 'Deutschland',
+    address_type: pick(row, 'adresstyp', 'address_type') || 'Hauptadresse',
+    street: pick(row, 'strasse', 'straße', 'street'),
+    street_number: pick(row, 'hausnummer', 'street_number'),
+    address_extra: pick(row, 'adresszusatz', 'address_extra'),
+    postal_code: pick(row, 'plz', 'postal_code'),
+    city: pick(row, 'ort', 'city'),
+    state: pick(row, 'bundesland', 'state'),
+    country: pick(row, 'land', 'country') || 'Deutschland',
     is_primary: true,
   }
 }
@@ -252,7 +293,10 @@ export default function ContactImport({ onClose, onSuccess }: Props) {
           <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm text-blue-800">
             <p className="font-semibold mb-1">CSV Format (Semikolon-getrennt, UTF-8):</p>
             <p className="font-mono text-xs break-all">
-              vorname;nachname;firmenname;email;telefon;mobil;position;strasse;hausnummer;plz;ort;land
+              is_company;salutation;title;first_name;last_name;company_name;legal_form;register_info;position;department;employee_number;email_main;phone_main;mobile_main;website;birthday;tax_number;vat_id;customer_number;supplier_number;notes;tags;visibility;address_type;street;street_number;address_extra;postal_code;city;state;country
+            </p>
+            <p className="mt-1 text-xs">
+              Auch ältere Spaltennamen (vorname, nachname, firma, telefon, plz, ort, ...) werden weiterhin erkannt.
             </p>
             <p className="mt-1 text-xs">
               Große Dateien werden automatisch in Pakete à {CHUNK_SIZE} Zeilen aufgeteilt.

@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
-import { usePropertyUsage, usePropertyUnits, useSavePropertyUsage } from '@/modules/properties/hooks/useProperties'
+import { usePropertyUsage, usePropertyUnits, usePropertyUsages, useSavePropertyUsage } from '@/modules/properties/hooks/useProperties'
 import { useContacts } from '@/hooks/useContacts'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ArrowLeft, Save, Search } from 'lucide-react'
+import { ArrowLeft, Save, Search, UserPlus } from 'lucide-react'
 
 
-const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Nacht']
+const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Tag und Person']
 
   export default function UsageForm() {
   const navigate = useNavigate()
@@ -21,16 +21,19 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Na
   const isEdit = !!id
   const { data: existing } = usePropertyUsage(id ?? '')
   const { data: unitsResult } = usePropertyUnits()
+  const { data: allUsagesResult } = usePropertyUsages()
   const { data: contactsResult } = useContacts('', 0, 1000)
   const saveUsage = useSavePropertyUsage()
 
   const units = unitsResult ?? []
+  const allUsages = allUsagesResult ?? []
   const contacts = contactsResult?.data ?? []
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [contactSearch, setContactSearch] = useState('')
   const [unitSearch, setUnitSearch] = useState('')
+  const [onlyAvailableUnits, setOnlyAvailableUnits] = useState(false)
 
   const [form, setForm] = useState({
     unit_id: '',
@@ -49,7 +52,6 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Na
     children_count: '0',
     adults_count: '0',
     is_active: true,
-    is_future: false,
     notes: '',
     show_in_calendar: true,
     calendar_comment: '',
@@ -74,7 +76,6 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Na
       children_count: existing.children_count?.toString() ?? '0',
       adults_count: existing.adults_count?.toString() ?? '0',
       is_active: existing.is_active ?? true,
-      is_future: existing.is_future ?? false,
       notes: existing.notes ?? '',
       show_in_calendar: existing.show_in_calendar ?? true,
       calendar_comment: existing.calendar_comment ?? '',
@@ -112,11 +113,36 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Na
     return name.toLowerCase().includes(contactSearch.toLowerCase())
   })
 
-  const filteredUnits = units.filter(u =>
-    u.name?.toLowerCase().includes(unitSearch.toLowerCase()) ||
-    u.short_code?.toLowerCase().includes(unitSearch.toLowerCase()) ||
-    u.location?.toLowerCase().includes(unitSearch.toLowerCase())
-  )
+  // Ermittelt, ob eine Einheit aktuell (heute) anderweitig vermietet/genutzt ist
+  const isUnitCurrentlyOccupied = (unitId: string): boolean => {
+    const now = new Date()
+    return allUsages.some(u => {
+      if (u.unit_id !== unitId) return false
+      // bei Bearbeitung die eigene Nutzung nicht mitzählen
+      if (isEdit && u.id === id) return false
+
+      const from = u.date_from ? new Date(u.date_from) : null
+      const to = u.date_to ? new Date(u.date_to) : null
+
+      if (from && from > now) return false // zukünftig -> blockiert "jetzt" nicht
+      if (!u.is_unlimited && to && to < now) return false // bereits beendet
+
+      return true // läuft gerade (unbefristet oder im Zeitraum)
+    })
+  }
+
+  const filteredUnits = units.filter(u => {
+    const matchesSearch =
+      u.name?.toLowerCase().includes(unitSearch.toLowerCase()) ||
+      u.short_code?.toLowerCase().includes(unitSearch.toLowerCase()) ||
+      u.location?.toLowerCase().includes(unitSearch.toLowerCase())
+
+    if (!matchesSearch) return false
+
+    if (onlyAvailableUnits && isUnitCurrentlyOccupied(u.id)) return false
+
+    return true
+  })
 
   const getContactName = (id: string) => {
     const c = contacts.find(c => c.id === id)
@@ -130,6 +156,42 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Na
     const u = units.find(u => u.id === id)
     if (!u) return ''
     return `${u.short_code ? `[${u.short_code}] ` : ''}${u.name ?? u.location ?? ''}`
+  }
+
+  // Berechnet die Gesamtmiete basierend auf Zeitraum, Datum und Personen
+  const calcRent = (): string => {
+    const rate = parseFloat(form.rent_actual)
+    if (!form.rent_actual || isNaN(rate)) return ''
+
+    const adults = parseInt(form.adults_count) || 0
+    const children = parseInt(form.children_count) || 0
+    const weightedPersons = adults + children * 0.5
+
+    const from = form.date_from ? new Date(form.date_from) : null
+    const to = form.is_unlimited ? null : (form.date_to ? new Date(form.date_to) : null)
+
+    const days = (from && to)
+      ? Math.max(1, Math.round((to.getTime() - from.getTime()) / 86400000) + 1)
+      : null
+
+    switch (form.rental_period) {
+      case 'pro Tag und Person':
+        if (days == null) return ''
+        return (rate * weightedPersons * days).toFixed(2)
+      case 'pro Tag':
+        if (days == null) return ''
+        return (rate * days).toFixed(2)
+      case 'pro Woche':
+        if (days == null) return rate.toFixed(2)
+        return (rate * (days / 7)).toFixed(2)
+      case 'pro Monat':
+        if (days == null) return rate.toFixed(2)
+        return (rate * (days / 30.44)).toFixed(2)
+      case 'einmalig':
+        return rate.toFixed(2)
+      default:
+        return ''
+    }
   }
 
   const handleSave = async () => {
@@ -154,7 +216,6 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Na
         children_count: parseInt(form.children_count) || 0,
         adults_count: parseInt(form.adults_count) || 0,
         is_active: form.is_active,
-        is_future: form.is_future,
         notes: form.notes || null,
         show_in_calendar: form.show_in_calendar,
         calendar_comment: form.calendar_comment || null,
@@ -211,7 +272,18 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Na
           <CardContent className="space-y-4">
             {/* Einheit */}
             <div>
-              <Label>Einheit *</Label>
+              <div className="flex items-center justify-between">
+                <Label>Einheit *</Label>
+                <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={onlyAvailableUnits}
+                    onChange={e => setOnlyAvailableUnits(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                  Nur verfügbare Einheiten anzeigen
+                </label>
+              </div>
               <div className="mt-1 space-y-2">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -223,12 +295,22 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Na
                   />
                 </div>
                 {form.unit_id && (
-                  <div className="text-sm text-blue-700 bg-blue-50 px-3 py-2 rounded">
+                  <button
+                    type="button"
+                    onClick={() => window.open(`/properties/units/${form.unit_id}/edit`, '_blank')}
+                    className="w-full text-left text-sm text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded transition-colors"
+                    title="Einheit in neuem Tab bearbeiten"
+                  >
                     ✅ {getUnitName(form.unit_id)}
-                  </div>
+                  </button>
                 )}
                 {unitSearch && (
                   <div className="border rounded-md bg-white shadow-sm max-h-48 overflow-y-auto">
+                    {filteredUnits.length === 0 && (
+                      <div className="px-3 py-2 text-sm text-gray-400">
+                        Keine {onlyAvailableUnits ? 'verfügbaren ' : ''}Einheiten gefunden
+                      </div>
+                    )}
                     {filteredUnits.slice(0, 20).map(u => (
                       <button
                         key={u.id}
@@ -251,7 +333,20 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Na
 
             {/* Nutzer/Kontakt */}
             <div>
-              <Label>Nutzer (Kontakt)</Label>
+              <div className="flex items-center justify-between">
+                <Label>Nutzer (Kontakt)</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 h-7 text-xs"
+                  onClick={() => window.open('/contacts/new', '_blank')}
+                  title="Neuen Kontakt in neuem Tab anlegen"
+                >
+                  <UserPlus className="h-3.5 w-3.5" />
+                  Neuer Nutzer
+                </Button>
+              </div>
               <div className="mt-1 space-y-2">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -263,9 +358,14 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Na
                   />
                 </div>
                 {form.contact_id && (
-                  <div className="text-sm text-blue-700 bg-blue-50 px-3 py-2 rounded">
+                  <button
+                    type="button"
+                    onClick={() => window.open(`/contacts/${form.contact_id}/edit`, '_blank')}
+                    className="w-full text-left text-sm text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded transition-colors"
+                    title="Kontakt in neuem Tab bearbeiten"
+                  >
                     ✅ {getContactName(form.contact_id)}
-                  </div>
+                  </button>
                 )}
                 {contactSearch && (
                   <div className="border rounded-md bg-white shadow-sm max-h-48 overflow-y-auto">
@@ -296,10 +396,8 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Na
         <Card>
           <CardHeader><CardTitle className="text-lg">Zeitraum & Konditionen</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-3 gap-6 pt-1">
+            <div className="pt-1">
               <ToggleButton field="is_unlimited" label="Unbefristet" />
-              <ToggleButton field="is_future" label="In Zukunft" />
-              <ToggleButton field="is_active" label="Aktiv" />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -321,6 +419,20 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Na
                 <Input className="mt-1" type="number" placeholder="z.B. 350"
                   value={form.rent_actual} onChange={e => set('rent_actual', e.target.value)} />
               </div>
+            </div>
+
+            <div>
+              <Label>Berechnete Miete (€)</Label>
+              <div className="mt-1 px-3 py-2 rounded-md border border-green-200 bg-green-50 text-green-800 font-medium text-sm min-h-10 flex items-center">
+                {calcRent() ? `${calcRent().replace('.', ',')} €` : '–'}
+              </div>
+              {form.rental_period === 'pro Tag und Person' && (
+                <p className="text-xs text-gray-400 mt-1">
+                  Kinder zählen mit halbem Satz · Erw. {form.adults_count || 0} + Kinder {form.children_count || 0} × 0,5 = {(
+                    (parseInt(form.adults_count) || 0) + (parseInt(form.children_count) || 0) * 0.5
+                  )} Pers.
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">

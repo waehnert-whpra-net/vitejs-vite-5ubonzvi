@@ -5,12 +5,15 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Plus, Pencil, Trash2, Search, DoorOpen, Users, Maximize2 } from 'lucide-react'
+import CreateDocumentDialog from '@/components/CreateDocumentDialog'
+import { Plus, Pencil, Trash2, Search, DoorOpen, Users, Maximize2, FileText } from 'lucide-react'
+import type { PropertyUnit } from '@/modules/properties/hooks/useProperties'
 
 export default function UnitList() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [areaFilter, setAreaFilter] = useState<string>('all')
+  const [createDocUnit, setCreateDocUnit] = useState<PropertyUnit | null>(null)
   const { data: units, isLoading } = usePropertyUnits()
   const { data: areas } = usePropertyAreas()
   const deleteUnit = useDeletePropertyUnit()
@@ -127,9 +130,7 @@ export default function UnitList() {
                       )}
                     </div>
                     <div className="flex items-center gap-4 mt-1 text-xs text-gray-400">
-                      {unit.location && (
-                        <span>{unit.location}</span>
-                      )}
+                      {unit.location && <span>{unit.location}</span>}
                       {unit.max_persons != null && (
                         <span className="flex items-center gap-1">
                           <Users className="h-3 w-3" />
@@ -155,6 +156,15 @@ export default function UnitList() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      onClick={() => setCreateDocUnit(unit)}
+                      title="Dokument erstellen"
+                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    >
+                      <FileText className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       onClick={() => navigate(`/properties/units/${unit.id}/edit`)}
                       title="Bearbeiten"
                     >
@@ -175,6 +185,14 @@ export default function UnitList() {
             </Card>
           ))}
         </div>
+      )}
+
+      {/* Dokument erstellen Dialog */}
+      {createDocUnit && (
+        <CreateDocumentDialog
+          unit={createDocUnit}
+          onClose={() => setCreateDocUnit(null)}
+        />
       )}
     </div>
   )

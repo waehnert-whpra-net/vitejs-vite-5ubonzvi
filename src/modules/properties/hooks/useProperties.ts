@@ -1,8 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 
-// ── TYPEN ──────────────────────────────────────────────
-
 export type PropertyArea = {
   id: string
   nr: number
@@ -51,6 +49,7 @@ export type PropertyUnit = {
   magic_plan: string | null
   floor_plan: string | null
   notes: string | null
+  document_folder: string | null
   is_active: boolean
   area?: PropertyArea
 }
@@ -74,7 +73,6 @@ export type PropertyUsage = {
   children_count: number
   adults_count: number
   is_active: boolean
-  is_future: boolean
   show_in_calendar: boolean
   calendar_comment: string | null
   notes: string | null
@@ -87,8 +85,6 @@ export type PropertyUsage = {
     is_company: boolean
   }
 }
-
-// ── BEREICHE ───────────────────────────────────────────
 
 export function usePropertyAreas() {
   return useQuery({
@@ -127,20 +123,14 @@ export function useSavePropertyArea() {
     mutationFn: async (area: Partial<PropertyArea> & { id?: string }) => {
       if (area.id) {
         const { error } = await supabase
-          .from('property_areas')
-          .update(area)
-          .eq('id', area.id)
+          .from('property_areas').update(area).eq('id', area.id)
         if (error) throw error
       } else {
-        const { error } = await supabase
-          .from('property_areas')
-          .insert(area)
+        const { error } = await supabase.from('property_areas').insert(area)
         if (error) throw error
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['property_areas'] })
-    }
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['property_areas'] })
   })
 }
 
@@ -149,18 +139,12 @@ export function useDeletePropertyArea() {
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from('property_areas')
-        .update({ is_active: false })
-        .eq('id', id)
+        .from('property_areas').update({ is_active: false }).eq('id', id)
       if (error) throw error
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['property_areas'] })
-    }
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['property_areas'] })
   })
 }
-
-// ── EINHEITEN ──────────────────────────────────────────
 
 export function usePropertyUnits(areaId?: string) {
   return useQuery({
@@ -171,9 +155,7 @@ export function usePropertyUnits(areaId?: string) {
         .select('*, area:property_areas(*)')
         .eq('is_active', true)
         .order('nr', { ascending: true })
-
       if (areaId) query = query.eq('area_id', areaId)
-
       const { data, error } = await query
       if (error) throw error
       return (data as unknown) as PropertyUnit[]
@@ -204,20 +186,14 @@ export function useSavePropertyUnit() {
       const { area, ...data } = unit as any
       if (data.id) {
         const { error } = await supabase
-          .from('property_units')
-          .update(data)
-          .eq('id', data.id)
+          .from('property_units').update(data).eq('id', data.id)
         if (error) throw error
       } else {
-        const { error } = await supabase
-          .from('property_units')
-          .insert(data)
+        const { error } = await supabase.from('property_units').insert(data)
         if (error) throw error
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['property_units'] })
-    }
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['property_units'] })
   })
 }
 
@@ -226,35 +202,27 @@ export function useDeletePropertyUnit() {
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from('property_units')
-        .update({ is_active: false })
-        .eq('id', id)
+        .from('property_units').update({ is_active: false }).eq('id', id)
       if (error) throw error
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['property_units'] })
-    }
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['property_units'] })
   })
 }
-
-// ── NUTZUNGEN ──────────────────────────────────────────
 
 export function usePropertyUsages(unitId?: string) {
   return useQuery({
     queryKey: ['property_usages', unitId],
     queryFn: async () => {
       let query = supabase
-  .from('property_usages')
-  .select(`
-    *,
-    unit:property_units(id, name, short_code, location, color),
-    contact:contacts(id, first_name, last_name, company_name, is_company)
-  `)
-  .eq('is_active', true)
-  .order('date_from', { ascending: false })
-
+        .from('property_usages')
+        .select(`
+          *,
+          unit:property_units(id, name, short_code, location, color),
+          contact:contacts(id, first_name, last_name, company_name, is_company)
+        `)
+        .eq('is_active', true)
+        .order('date_from', { ascending: false })
       if (unitId) query = query.eq('unit_id', unitId)
-
       const { data, error } = await query
       if (error) throw error
       return (data as unknown) as PropertyUsage[]
@@ -270,7 +238,7 @@ export function usePropertyUsage(id: string) {
         .from('property_usages')
         .select(`
           *,
-          unit:property_units(id, name, short_code, location),
+          unit:property_units(id, name, short_code, location, color),
           contact:contacts(id, first_name, last_name, company_name, is_company)
         `)
         .eq('id', id)
@@ -289,19 +257,18 @@ export function useSavePropertyUsage() {
       const { unit, contact, ...data } = usage as any
       if (data.id) {
         const { error } = await supabase
-          .from('property_usages')
-          .update(data)
-          .eq('id', data.id)
+          .from('property_usages').update(data).eq('id', data.id)
         if (error) throw error
       } else {
-        const { error } = await supabase
-          .from('property_usages')
-          .insert(data)
+        const { error } = await supabase.from('property_usages').insert(data)
         if (error) throw error
       }
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['property_usages'] })
+      if (variables.id) {
+        queryClient.invalidateQueries({ queryKey: ['property_usage', variables.id] })
+      }
     }
   })
 }
@@ -311,13 +278,9 @@ export function useDeletePropertyUsage() {
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from('property_usages')
-        .update({ is_active: false })
-        .eq('id', id)
+        .from('property_usages').update({ is_active: false }).eq('id', id)
       if (error) throw error
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['property_usages'] })
-    }
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['property_usages'] })
   })
 }

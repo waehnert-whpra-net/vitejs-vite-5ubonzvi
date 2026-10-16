@@ -4,20 +4,30 @@ import { supabase } from '@/lib/supabase'
 export type Contact = {
   id: string
   is_company: boolean
+  salutation_id: string | null
+  title: string | null
   first_name: string | null
   last_name: string | null
   company_name: string | null
+  legal_form: string | null
+  register_info: string | null
+  position: string | null
+  department: string | null
+  employee_number: string | null
   email_main: string | null
   phone_main: string | null
   mobile_main: string | null
-  position: string | null
-  department: string | null
+  website: string | null
+  birthday: string | null
+  tax_number: string | null
+  vat_id: string | null
+  customer_number: string | null
+  supplier_number: string | null
+  notes: string | null
+  visibility: string | null
+  tags: string[] | null
   is_active: boolean
   created_at: string
-  visibility: string
-  legal_form: string | null
-  register_info: string | null
-  salutation?: { name: string } | null
   contact_type_assignments?: {
     contact_types: {
       id: string
@@ -27,92 +37,66 @@ export type Contact = {
   }[]
 }
 
-export type ContactDetail = Contact & {
-  title: string | null
-  website: string | null
-  birthday: string | null
-  notes: string | null
-  tags: string[] | null
-  tax_number: string | null
-  vat_id: string | null
-  customer_number: string | null
-  supplier_number: string | null
-  employee_number: string | null
-  salutation_id: string | null
-  contact_addresses: {
-    id: string
-    address_type: string
-    street: string | null
-    street_number: string | null
-    address_extra: string | null
-    postal_code: string | null
-    city: string | null
-    state: string | null
-    country: string | null
-    is_primary: boolean
-  }[]
-  contact_communications: {
-    id: string
-    comm_type: string
-    value: string
-    label: string | null
-    is_primary: boolean
-  }[]
-  contact_relations_contact_id: {
-    id: string
-    related_id: string
-    relation_type: string
-    related: {
-      id: string
-      first_name: string | null
-      last_name: string | null
-      position: string | null
-      email_main: string | null
-      phone_main: string | null
-      mobile_main: string | null
-      salutation_id: string | null
-      title: string | null
-    }
-  }[]
-}
-
-// Alle Kontakte laden mit Pagination
-export function useContacts(search?: string, page: number = 0, pageSize: number = 50) {
+export function useContacts(search: string, page: number, pageSize: number) {
   return useQuery({
-    queryKey: ['contacts', search, page],
+    queryKey: ['contacts', search, page, pageSize],
     queryFn: async () => {
-      const from = page * pageSize
-      const to = from + pageSize - 1
-
       let query = supabase
         .from('contacts')
         .select(`
-          id, is_company, first_name, last_name, company_name,
-          email_main, phone_main, mobile_main, position, department,
-          is_active, created_at, visibility, legal_form, register_info,
-          salutation:salutations(name),
-          contact_type_assignments(
-            contact_types(id, name, color)
-          )
+          id, is_company, salutation_id, title,
+          first_name, last_name, company_name, legal_form, register_info,
+          position, department, employee_number,
+          email_main, phone_main, mobile_main, website, birthday,
+          tax_number, vat_id, customer_number, supplier_number,
+          notes, visibility, tags, is_active, created_at,
+          contact_type_assignments(contact_types(id, name, color))
         `, { count: 'exact' })
         .eq('is_active', true)
         .order('last_name', { ascending: true })
-        .range(from, to)
+        .order('company_name', { ascending: true })
+        .range(page * pageSize, (page + 1) * pageSize - 1)
 
-      if (search && search.length > 0) {
+      if (search) {
         query = query.or(
-          `last_name.ilike.%${search}%,first_name.ilike.%${search}%,company_name.ilike.%${search}%,email_main.ilike.%${search}%`
+          `first_name.ilike.%${search}%,last_name.ilike.%${search}%,company_name.ilike.%${search}%,email_main.ilike.%${search}%`
         )
       }
 
       const { data, error, count } = await query
       if (error) throw error
-      return { data: (data as unknown) as Contact[], count: count ?? 0 }
+      return { data: data as unknown as Contact[], count: count ?? 0 }
     }
   })
 }
 
-// Einzelnen Kontakt laden
+export function useDeleteContact() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('contacts')
+        .update({ is_active: false })
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contacts'] })
+  })
+}
+
+export type ContactType = {
+  id: string
+  name: string
+  color: string | null
+  description: string | null
+}
+
+export type Salutation = {
+  id: string
+  name: string
+  gender: string | null
+}
+
 export function useContact(id: string) {
   return useQuery({
     queryKey: ['contact', id],
@@ -121,7 +105,6 @@ export function useContact(id: string) {
         .from('contacts')
         .select(`
           *,
-          salutation:salutations(name),
           contact_type_assignments(contact_types(id, name, color)),
           contact_addresses(*),
           contact_communications(*),
@@ -136,32 +119,17 @@ export function useContact(id: string) {
         `)
         .eq('id', id)
         .single()
-
       if (error) throw error
-      return (data as unknown) as ContactDetail
+      return data as unknown as Contact & {
+        contact_addresses: any[]
+        contact_communications: any[]
+        contact_relations_contact_id: any[]
+      }
     },
     enabled: !!id
   })
 }
 
-// Kontakt löschen (deaktivieren)
-export function useDeleteContact() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('contacts')
-        .update({ is_active: false })
-        .eq('id', id)
-      if (error) throw error
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contacts'] })
-    }
-  })
-}
-
-// Kontaktarten laden
 export function useContactTypes() {
   return useQuery({
     queryKey: ['contact_types'],
@@ -169,14 +137,13 @@ export function useContactTypes() {
       const { data, error } = await supabase
         .from('contact_types')
         .select('*')
-        .order('sort_order')
+        .order('name')
       if (error) throw error
-      return data
+      return data as ContactType[]
     }
   })
 }
 
-// Anreden laden
 export function useSalutations() {
   return useQuery({
     queryKey: ['salutations'],
@@ -184,14 +151,13 @@ export function useSalutations() {
       const { data, error } = await supabase
         .from('salutations')
         .select('*')
-        .order('sort_order')
+        .order('name')
       if (error) throw error
-      return data
+      return data as Salutation[]
     }
   })
 }
 
-// Kontakte suchen (für Ansprechpartner-Suche)
 export function useContactSearch(search: string) {
   return useQuery({
     queryKey: ['contact_search', search],
@@ -199,16 +165,33 @@ export function useContactSearch(search: string) {
       if (!search || search.length < 2) return []
       const { data, error } = await supabase
         .from('contacts')
-        .select('id, first_name, last_name, company_name, email_main, is_company')
+        .select('id, is_company, first_name, last_name, company_name, email_main')
         .eq('is_active', true)
-        .eq('is_company', false)
-        .or(
-          `last_name.ilike.%${search}%,first_name.ilike.%${search}%,email_main.ilike.%${search}%`
-        )
-        .limit(10)
+        .or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,company_name.ilike.%${search}%`)
+        .limit(20)
       if (error) throw error
-      return data
+      return data as Contact[]
     },
-    enabled: search.length >= 2
+    enabled: !!search && search.length >= 2
+  })
+}
+
+export function useSaveContact() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (contact: Partial<Contact> & { id?: string }) => {
+      if (contact.id) {
+        const { error } = await supabase
+          .from('contacts').update(contact).eq('id', contact.id)
+        if (error) throw error
+        return contact.id
+      } else {
+        const { data, error } = await supabase
+          .from('contacts').insert(contact).select('id').single()
+        if (error) throw error
+        return data.id
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contacts'] })
   })
 }

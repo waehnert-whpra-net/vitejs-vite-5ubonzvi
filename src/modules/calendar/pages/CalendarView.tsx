@@ -9,6 +9,19 @@ import { Card, CardContent } from '@/components/ui/card'
 
 import { useNavigate, useLocation } from 'react-router-dom'
 
+// Ermittelt anhand der Helligkeit (Luminanz) einer Hex-Farbe, ob schwarzer
+// oder weißer Text besser lesbar ist
+function getTextColor(hex: string): string {
+  const clean = hex.replace('#', '')
+  if (clean.length !== 6) return '#ffffff'
+  const r = parseInt(clean.substring(0, 2), 16)
+  const g = parseInt(clean.substring(2, 4), 16)
+  const b = parseInt(clean.substring(4, 6), 16)
+  // relative Luminanz (WCAG-Näherung)
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return luminance > 0.6 ? '#1f2937' : '#ffffff'
+}
+
 export default function CalendarView() {
   const navigate = useNavigate()
   const isAdmin = useIsAdmin()
@@ -31,6 +44,7 @@ export default function CalendarView() {
 
       const unitName = u.unit?.name ?? u.unit?.short_code ?? ''
       const color = (u.unit as any)?.color ?? '#3b82f6'
+      const textColor = getTextColor(color)
 
       // Endatum: FullCalendar braucht exklusives Enddatum
       let endDate = u.date_to
@@ -48,6 +62,7 @@ export default function CalendarView() {
         allDay: true,
         backgroundColor: color,
         borderColor: color,
+        textColor,
         extendedProps: {
           unitName,
           contactName,
@@ -55,12 +70,35 @@ export default function CalendarView() {
           calendar_comment: u.calendar_comment,
           rent_actual: u.rent_actual,
           usageId: u.id,
+          textColor,
         }
       }
     }) ?? []
 
   // Drag & Drop Handler
   const handleEventDrop = async (info: any) => {
+    if (!isAdmin) return
+
+    const { event } = info
+    const newStart = event.startStr
+    const newEnd = event.endStr
+      ? new Date(new Date(event.endStr).setDate(new Date(event.endStr).getDate() - 1))
+          .toISOString().split('T')[0]
+      : null
+
+    try {
+      await saveUsage.mutateAsync({
+        id: event.id,
+        date_from: newStart,
+        date_to: newEnd,
+      })
+    } catch {
+      info.revert()
+    }
+  }
+
+  // Resize Handler (Termin verlängern/verkürzen)
+  const handleEventResize = async (info: any) => {
     if (!isAdmin) return
 
     const { event } = info
@@ -94,9 +132,9 @@ export default function CalendarView() {
 
   // Tooltip Inhalt
   const renderEventContent = (eventInfo: any) => {
-    const { unitName, contactName, calendar_comment } = eventInfo.event.extendedProps
+    const { unitName, contactName, calendar_comment, textColor } = eventInfo.event.extendedProps
     return (
-      <div className="p-0.5 overflow-hidden">
+      <div className="p-0.5 overflow-hidden" style={{ color: textColor }}>
         <div className="font-semibold text-xs truncate">{unitName}</div>
         {contactName && (
           <div className="text-xs opacity-90 truncate">{contactName}</div>
@@ -189,6 +227,7 @@ export default function CalendarView() {
             editable={isAdmin}
             droppable={isAdmin}
             eventDrop={handleEventDrop}
+            eventResize={handleEventResize}
             eventClick={handleEventClick}
             eventDisplay="block"
             dayMaxEvents={4}

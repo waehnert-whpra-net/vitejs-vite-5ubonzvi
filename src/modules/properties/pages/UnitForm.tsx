@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { usePropertyUnit, usePropertyAreas, useSavePropertyUnit } from '@/modules/properties/hooks/useProperties'
 import { Button } from '@/components/ui/button'
@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ArrowLeft, Save } from 'lucide-react'
+import { ArrowLeft, Save, Upload, X } from 'lucide-react'
+import FolderPicker from '@/components/FolderPicker'
 
 const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Nacht']
 const CLEANING_STATUSES = ['gereinigt', 'zu reinigen', 'in Reinigung']
@@ -19,9 +20,13 @@ export default function UnitForm() {
   const { data: existing } = usePropertyUnit(id ?? '')
   const { data: areas } = usePropertyAreas()
   const saveUnit = useSavePropertyUnit()
+  const floorPlanInputRef = useRef<HTMLInputElement>(null)
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [floorPlanPreview, setFloorPlanPreview] = useState<string | null>(null)
+  const [showFolderPicker, setShowFolderPicker] = useState(false)
+
   const [form, setForm] = useState({
     nr: '',
     name: '',
@@ -44,19 +49,37 @@ export default function UnitForm() {
     land_price_share: '',
     color: '',
     rooms: '',
-    max_persons: '',
+    max_persons: '',       // = Betten
     sqm_measured: '',
     has_terrace: false,
     has_garden: false,
     is_rentable: true,
-    rooms_with_wc: '',
-    max_extra_beds: '',
-    extra_beds_delivery: '',
+    rooms_with_wc: '',     // = Badezimmer
+    max_extra_beds: '',    // = Max. Aufbettung auf
+    extra_beds_delivery: '', // = Küchen
     extra_beds_couch: '',
+    hallways: '',          // = Flure (neues Feld, nur im State; DB-Spalte ggf. noch anlegen)
+    property_notes: '',    // = Anmerkungen zu den Eigenschaften der Einheit
     magic_plan: '',
     floor_plan: '',
     notes: '',
+    document_folder: '',
   })
+
+  // Automatische Berechnung: Berechnet pro Woche
+  const calcWeeklyRent = (): string => {
+    const target = parseFloat(form.rent_target)
+    if (!form.rent_target || isNaN(target)) return ''
+    switch (form.rental_period) {
+      case 'pro Woche':  return target.toFixed(2)
+      case 'pro Monat':  return (target / 4.33).toFixed(2)
+      case 'pro Tag':    return (target * 7).toFixed(2)
+      case 'pro Nacht':  return (target * 7).toFixed(2)
+      default:           return ''
+    }
+  }
+
+  const isMonthly = form.rental_period === 'pro Monat'
 
   useEffect(() => {
     if (!existing) return
@@ -91,10 +114,14 @@ export default function UnitForm() {
       max_extra_beds: existing.max_extra_beds?.toString() ?? '',
       extra_beds_delivery: existing.extra_beds_delivery?.toString() ?? '',
       extra_beds_couch: existing.extra_beds_couch?.toString() ?? '',
+      hallways: '',
+      property_notes: '',
       magic_plan: existing.magic_plan ?? '',
       floor_plan: existing.floor_plan ?? '',
       notes: existing.notes ?? '',
+      document_folder: existing.document_folder ?? '',
     })
+    if (existing.floor_plan) setFloorPlanPreview(existing.floor_plan)
   }, [existing])
 
   const set = (field: string, value: string | boolean) =>
@@ -105,6 +132,18 @@ export default function UnitForm() {
 
   const toggle = (field: string) =>
     setForm(prev => ({ ...prev, [field]: !prev[field as keyof typeof prev] }))
+
+  const handleFloorPlanFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const result = ev.target?.result as string
+      setFloorPlanPreview(result)
+      set('floor_plan', file.name)
+    }
+    reader.readAsDataURL(file)
+  }
 
   const ToggleButton = ({ field, label }: { field: string; label: string }) => (
     <div className="flex items-center gap-3">
@@ -143,7 +182,7 @@ export default function UnitForm() {
         cleaning_notes: form.cleaning_notes || null,
         rent_target: num(form.rent_target),
         daily_rate_per_person: num(form.daily_rate_per_person),
-        rent_calculated_weekly: num(form.rent_calculated_weekly),
+        rent_calculated_weekly: num(calcWeeklyRent()),
         rent_total: num(form.rent_total),
         rent_cold: num(form.rent_cold),
         operating_costs: num(form.operating_costs),
@@ -163,6 +202,7 @@ export default function UnitForm() {
         magic_plan: form.magic_plan || null,
         floor_plan: form.floor_plan || null,
         notes: form.notes || null,
+        document_folder: form.document_folder || null,
       })
       navigate('/properties/units')
     } catch (err: any) {
@@ -173,6 +213,7 @@ export default function UnitForm() {
   }
 
   return (
+    <>
     <div className="p-6 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
@@ -196,56 +237,38 @@ export default function UnitForm() {
         <Card>
           <CardHeader><CardTitle className="text-lg">Basisdaten</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <Label>Nummer</Label>
-                <Input className="mt-1" type="number" placeholder="z.B. 1"
-                  value={form.nr} onChange={e => set('nr', e.target.value)} />
-              </div>
+            {/* Nummer und Kürzel alt entfernt aus diesem Bereich → nur Kürzel + Name + Bereich + Lage */}
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Kürzel</Label>
                 <Input className="mt-1" placeholder="z.B. B101"
                   value={form.short_code} onChange={e => set('short_code', e.target.value)} />
               </div>
               <div>
-                <Label>Kürzel alt</Label>
-                <Input className="mt-1" placeholder="Altes Kürzel"
-                  value={form.short_code_old} onChange={e => set('short_code_old', e.target.value)} />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
                 <Label>Name</Label>
                 <Input className="mt-1" placeholder="z.B. Bella"
                   value={form.name} onChange={e => set('name', e.target.value)} />
               </div>
-              <div>
-                <Label>Bereich *</Label>
-                <Select value={form.area_id} onValueChange={v => set('area_id', v)}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Bereich wählen" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {areas?.map(a => (
-                      <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Lage</Label>
-                <Input className="mt-1" placeholder="z.B. 1. OG 1. Einheit"
-                  value={form.location} onChange={e => set('location', e.target.value)} />
-              </div>
-              <div>
-                <Label>Lage (geo)</Label>
-                <Input className="mt-1" placeholder="z.B. 1. OG Nord"
-                  value={form.location_geo} onChange={e => set('location_geo', e.target.value)} />
-              </div>
+            <div>
+              <Label>Bereich *</Label>
+              <Select value={form.area_id} onValueChange={v => set('area_id', v)}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Bereich wählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  {areas?.map(a => (
+                    <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Lage</Label>
+              <Input className="mt-1" placeholder="z.B. 1. OG 1. Einheit"
+                value={form.location} onChange={e => set('location', e.target.value)} />
             </div>
           </CardContent>
         </Card>
@@ -261,7 +284,7 @@ export default function UnitForm() {
                   value={form.rooms} onChange={e => set('rooms', e.target.value)} />
               </div>
               <div>
-                <Label>Max. Personen</Label>
+                <Label>Betten</Label>
                 <Input className="mt-1" type="number" placeholder="z.B. 4"
                   value={form.max_persons} onChange={e => set('max_persons', e.target.value)} />
               </div>
@@ -272,21 +295,26 @@ export default function UnitForm() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-4 gap-3">
               <div>
-                <Label>Zimmer mit WC</Label>
+                <Label>Badezimmer</Label>
                 <Input className="mt-1" type="number"
                   value={form.rooms_with_wc} onChange={e => set('rooms_with_wc', e.target.value)} />
               </div>
               <div>
-                <Label>Max. Aufbettung</Label>
-                <Input className="mt-1" type="number"
-                  value={form.max_extra_beds} onChange={e => set('max_extra_beds', e.target.value)} />
-              </div>
-              <div>
-                <Label>Aufbettung Zustellung</Label>
+                <Label>Küchen</Label>
                 <Input className="mt-1" type="number"
                   value={form.extra_beds_delivery} onChange={e => set('extra_beds_delivery', e.target.value)} />
+              </div>
+              <div>
+                <Label>Flure</Label>
+                <Input className="mt-1" type="number"
+                  value={form.hallways} onChange={e => set('hallways', e.target.value)} />
+              </div>
+              <div>
+                <Label>Max. Aufbettung auf</Label>
+                <Input className="mt-1" type="number"
+                  value={form.max_extra_beds} onChange={e => set('max_extra_beds', e.target.value)} />
               </div>
             </div>
 
@@ -295,6 +323,64 @@ export default function UnitForm() {
               <ToggleButton field="has_garden" label="Garten" />
               <ToggleButton field="is_rentable" label="Mietbar" />
             </div>
+
+            {/* Grundriss Upload */}
+            <div>
+              <Label>Grundriss</Label>
+              <div className="mt-1 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => floorPlanInputRef.current?.click()}
+                  >
+                    <Upload className="h-4 w-4" />
+                    Grafik hochladen
+                  </Button>
+                  {floorPlanPreview && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1 text-red-500 hover:text-red-600"
+                      onClick={() => { setFloorPlanPreview(null); set('floor_plan', '') }}
+                    >
+                      <X className="h-4 w-4" />
+                      Entfernen
+                    </Button>
+                  )}
+                </div>
+                <input
+                  ref={floorPlanInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFloorPlanFile}
+                />
+                {floorPlanPreview && (
+                  <div className="mt-2 border rounded-md overflow-hidden max-w-xs">
+                    <img
+                      src={floorPlanPreview}
+                      alt="Grundriss Vorschau"
+                      className="w-full h-auto object-contain"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Anmerkungen Eigenschaften */}
+            <div>
+              <Label>Anmerkungen zu den Eigenschaften der Einheit</Label>
+              <textarea
+                className="mt-1 w-full min-h-20 p-3 rounded-md border border-input bg-background text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                placeholder="Anmerkungen zu den Eigenschaften..."
+                value={form.property_notes}
+                onChange={e => set('property_notes', e.target.value)}
+              />
+            </div>
           </CardContent>
         </Card>
 
@@ -302,6 +388,8 @@ export default function UnitForm() {
         <Card>
           <CardHeader><CardTitle className="text-lg">Preise & Konditionen</CardTitle></CardHeader>
           <CardContent className="space-y-4">
+
+            {/* Zeitraum SOLL immer sichtbar */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Zeitraum SOLL</Label>
@@ -316,56 +404,59 @@ export default function UnitForm() {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label>Miete SOLL (€)</Label>
-                <Input className="mt-1" type="number" placeholder="z.B. 200"
-                  value={form.rent_target} onChange={e => set('rent_target', e.target.value)} />
-              </div>
+
+              {/* Miete SOLL nur wenn NICHT monatlich */}
+              {!isMonthly && (
+                <div>
+                  <Label>Miete SOLL (€)</Label>
+                  <Input className="mt-1" type="number" placeholder="z.B. 200"
+                    value={form.rent_target} onChange={e => set('rent_target', e.target.value)} />
+                </div>
+              )}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Tagesmiete p.P. SOLL (€)</Label>
-                <Input className="mt-1" type="number"
-                  value={form.daily_rate_per_person} onChange={e => set('daily_rate_per_person', e.target.value)} />
+            {/* Tagesmiete + Berechnet pro Woche: nur wenn NICHT monatlich */}
+            {!isMonthly && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Tagesmiete p.P. SOLL (€)</Label>
+                  <Input className="mt-1" type="number"
+                    value={form.daily_rate_per_person} onChange={e => set('daily_rate_per_person', e.target.value)} />
+                </div>
+                <div>
+                  <Label>Berechnet pro Woche (€)</Label>
+                  <Input
+                    className="mt-1 bg-gray-50 text-gray-700"
+                    type="number"
+                    readOnly
+                    value={calcWeeklyRent()}
+                    placeholder="—"
+                  />
+                </div>
               </div>
-              <div>
-                <Label>Berechnet pro Woche (€)</Label>
-                <Input className="mt-1" type="number"
-                  value={form.rent_calculated_weekly} onChange={e => set('rent_calculated_weekly', e.target.value)} />
-              </div>
-            </div>
+            )}
 
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <Label>Gesamt (€)</Label>
-                <Input className="mt-1" type="number"
-                  value={form.rent_total} onChange={e => set('rent_total', e.target.value)} />
+            {/* Monatliche Felder: kalt, BK/HK/Strom, Gesamt – nur wenn monatlich */}
+            {isMonthly && (
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label>Kalt (€)</Label>
+                  <Input className="mt-1" type="number"
+                    value={form.rent_cold} onChange={e => set('rent_cold', e.target.value)} />
+                </div>
+                <div>
+                  <Label>BK/HK/Strom (€)</Label>
+                  <Input className="mt-1" type="number"
+                    value={form.operating_costs} onChange={e => set('operating_costs', e.target.value)} />
+                </div>
+                <div>
+                  <Label>Gesamt (€)</Label>
+                  <Input className="mt-1" type="number"
+                    value={form.rent_total} onChange={e => set('rent_total', e.target.value)} />
+                </div>
               </div>
-              <div>
-                <Label>Kalt (€)</Label>
-                <Input className="mt-1" type="number"
-                  value={form.rent_cold} onChange={e => set('rent_cold', e.target.value)} />
-              </div>
-              <div>
-                <Label>Preisanteil Grundstück (€)</Label>
-                <Input className="mt-1" type="number"
-                  value={form.land_price_share} onChange={e => set('land_price_share', e.target.value)} />
-              </div>
-            </div>
+            )}
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>BK/HK/Strom (€)</Label>
-                <Input className="mt-1" type="number"
-                  value={form.operating_costs} onChange={e => set('operating_costs', e.target.value)} />
-              </div>
-              <div>
-                <Label>Heizung (€)</Label>
-                <Input className="mt-1" type="number"
-                  value={form.heating_costs} onChange={e => set('heating_costs', e.target.value)} />
-              </div>
-            </div>
           </CardContent>
         </Card>
 
@@ -413,10 +504,28 @@ export default function UnitForm() {
           </CardContent>
         </Card>
 
-        {/* Darstellung */}
+        {/* Darstellung & Referenzen */}
         <Card>
           <CardHeader><CardTitle className="text-lg">Darstellung & Referenzen</CardTitle></CardHeader>
           <CardContent className="space-y-4">
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label>Nummer</Label>
+                <Input className="mt-1" type="number" placeholder="z.B. 1"
+                  value={form.nr} onChange={e => set('nr', e.target.value)} />
+              </div>
+              <div>
+                <Label>Kürzel alt</Label>
+                <Input className="mt-1" placeholder="Altes Kürzel"
+                  value={form.short_code_old} onChange={e => set('short_code_old', e.target.value)} />
+              </div>
+              <div>
+                <Label>Lage (geo)</Label>
+                <Input className="mt-1" placeholder="z.B. 1. OG Nord"
+                  value={form.location_geo} onChange={e => set('location_geo', e.target.value)} />
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Farbe</Label>
@@ -441,10 +550,48 @@ export default function UnitForm() {
                   value={form.magic_plan} onChange={e => set('magic_plan', e.target.value)} />
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Dokumente */}
+        <Card>
+          <CardHeader><CardTitle className="text-lg">Dokumente</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
             <div>
-              <Label>Grundriss (Pfad)</Label>
-              <Input className="mt-1" placeholder="z.B. M1/Bella.png"
-                value={form.floor_plan} onChange={e => set('floor_plan', e.target.value)} />
+              <Label>Standard-Verzeichnis für Dokumente</Label>
+              <p className="text-xs text-gray-400 mt-0.5 mb-2">
+                Wird beim Erstellen von Dokumenten als Zielverzeichnis vorgeschlagen.
+                Wenn leer, gilt das Standard-Verzeichnis aus dem Setup.
+              </p>
+              <div className="flex items-center gap-2">
+                <Input
+                  className="flex-1 font-mono text-sm bg-gray-50"
+                  readOnly
+                  placeholder="Kein Verzeichnis gesetzt (Standard aus Setup wird verwendet)"
+                  value={form.document_folder}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 flex-shrink-0"
+                  onClick={() => setShowFolderPicker(true)}
+                >
+                  <Upload className="h-4 w-4" />
+                  {form.document_folder ? 'Ändern' : 'Wählen'}
+                </Button>
+                {form.document_folder && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1 text-red-500 hover:text-red-600 flex-shrink-0"
+                    onClick={() => set('document_folder', '')}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -474,5 +621,14 @@ export default function UnitForm() {
         </div>
       </div>
     </div>
+
+      {showFolderPicker && (
+        <FolderPicker
+          initialPath={form.document_folder || '/'}
+          onSelect={(path) => { set('document_folder', path); setShowFolderPicker(false) }}
+          onClose={() => setShowFolderPicker(false)}
+        />
+      )}
+    </>
   )
 }

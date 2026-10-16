@@ -9,8 +9,19 @@ import { Plus, Pencil, Trash2, Search, CalendarDays, Users } from 'lucide-react'
 export default function UsageList() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState<'all' | 'current' | 'future'>('all')
   const { data: usages, isLoading } = usePropertyUsages()
   const deleteUsage = useDeletePropertyUsage()
+
+  const getUsageState = (usage: { date_from: string | null; date_to: string | null }): 'current' | 'future' | 'past' => {
+    const now = new Date()
+    const from = usage.date_from ? new Date(usage.date_from) : null
+    const to = usage.date_to ? new Date(usage.date_to) : null
+
+    if (from && from > now) return 'future'
+    if (to && to < now) return 'past'
+    return 'current'
+  }
 
   const filtered = usages?.filter(u => {
     const contactName = u.contact
@@ -18,12 +29,18 @@ export default function UsageList() {
         ? u.contact.company_name
         : [u.contact.first_name, u.contact.last_name].filter(Boolean).join(' ')
       : ''
-    return (
+    const matchesSearch = (
       contactName?.toLowerCase().includes(search.toLowerCase()) ||
       u.unit?.name?.toLowerCase().includes(search.toLowerCase()) ||
       u.unit?.short_code?.toLowerCase().includes(search.toLowerCase()) ||
       u.notes?.toLowerCase().includes(search.toLowerCase())
     )
+
+    if (!matchesSearch) return false
+
+    if (filter === 'current') return getUsageState(u) === 'current'
+    if (filter === 'future') return getUsageState(u) === 'future'
+    return true
   }) ?? []
 
   const handleDelete = async (id: string) => {
@@ -69,10 +86,24 @@ export default function UsageList() {
           <h1 className="text-3xl font-bold text-gray-900">Nutzungen</h1>
           <p className="text-gray-500 mt-1">{filtered.length} Nutzungen</p>
         </div>
-        <Button onClick={() => navigate('/properties/usages/new')} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Neue Nutzung
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={filter === 'current' ? 'default' : 'outline'}
+            onClick={() => setFilter(filter === 'current' ? 'all' : 'current')}
+          >
+            Derzeit genutzt
+          </Button>
+          <Button
+            variant={filter === 'future' ? 'default' : 'outline'}
+            onClick={() => setFilter(filter === 'future' ? 'all' : 'future')}
+          >
+            Zukünftig genutzt
+          </Button>
+          <Button onClick={() => navigate('/properties/usages/new')} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Neue Nutzung
+          </Button>
+        </div>
       </div>
 
       {/* Suche */}
@@ -113,7 +144,7 @@ export default function UsageList() {
                 <div className="flex items-center gap-4">
                   {/* Icon */}
                   <div className="w-12 h-12 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                    <CalendarDays className="h-6 w-6 text-indigo-600" />
+                    <Users className="h-6 w-6 text-indigo-600" />
                   </div>
 
                   {/* Info */}
@@ -123,9 +154,16 @@ export default function UsageList() {
                         {getContactName(usage)}
                       </span>
                       {usage.unit && (
-                        <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-mono">
-                          {usage.unit.short_code ?? usage.unit.name}
-                        </span>
+                        <>
+                          {usage.unit.name && (
+                            <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-mono">
+                              {usage.unit.name}
+                            </span>
+                          )}
+                          <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-mono">
+                            {usage.unit.short_code ?? usage.unit.name}
+                          </span>
+                        </>
                       )}
                       {getStatusBadge(usage)}
                     </div>
