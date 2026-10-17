@@ -17,7 +17,7 @@ export default function UserForm() {
   const navigate = useNavigate()
 
   const { data: isSuperAdmin, isLoading: loadingPerm } = useIsSuperAdmin()
-  const { data: allUsers, isLoading: loadingUsers } = useAllUsers()
+  const { data: allUsers, isLoading: loadingUsers } = useAllUsers({ staleTime: 0 })
   const { data: roles } = useAllRoles()
   const updateUser = useUpdateUser()
   const inviteUser = useInviteUser()

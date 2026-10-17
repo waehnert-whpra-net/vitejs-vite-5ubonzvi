@@ -17,14 +17,15 @@ export type UserWithRole = {
   notify_new_users: boolean
 }
 
-export function useAllUsers() {
+export function useAllUsers(options?: { staleTime?: number }) {
   return useQuery({
     queryKey: ['all_users_with_roles'],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_all_users_with_roles')
       if (error) throw error
       return data as UserWithRole[]
-    }
+    },
+    staleTime: options?.staleTime,
   })
 }
 
