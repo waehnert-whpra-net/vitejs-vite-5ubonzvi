@@ -499,6 +499,7 @@ export default function BuchungssaetzePage() {
         .from('buchungssaetze')
         .select(`
           id, nummer, datum, buchungstext, anmerkungen, ki_vorlage,
+          belegnummer, belegdatum, belegtyp, contact_id,
           beleg_sharepoint_url, beleg_sharepoint_path, beleg_storage_path,
           buchungen(datum, betrag, buchungstext, anmerkungen, sort_order, sollkonto:skr03!sollkonto_id(id, kontonummer, beschriftung), habenkonto:skr03!habenkonto_id(id, kontonummer, beschriftung)),
           buchungssatz_transactions(transaction_id, transactions(id, counterpart_name, counterpart_iban, purpose))
@@ -540,6 +541,15 @@ export default function BuchungssaetzePage() {
       sollkonto_id: b.sollkonto?.id ?? '',
       habenkonto_id: b.habenkonto?.id ?? '',
     })))
+
+    // Belegnummer, Belegdatum, Belegtyp und Kontakt übernehmen
+    setBsForm(f => ({
+      ...f,
+      belegnummer: vorlage.belegnummer ?? f.belegnummer,
+      belegdatum: vorlage.belegdatum ?? f.belegdatum,
+      belegtyp: vorlage.belegtyp ?? f.belegtyp,
+      contact_id: vorlage.contact_id ?? f.contact_id,
+    }))
 
     // Beleg übernehmen
     const spPath = vorlage.beleg_sharepoint_path ?? ''
