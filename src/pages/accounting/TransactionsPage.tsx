@@ -355,10 +355,10 @@ export default function TransactionsPage() {
         purpose: tx.purpose
       }))
       // Neuer BS → neuer Tab
-      window.open(`/accounting/buchungssaetze?edit=${newBs.id}&tx=${txParam}`, '_blank')
+      window.open(`/accounting/buchungssaetze?edit=${newBs.id}&tx=${txParam}&from=transactions`, '_blank')
     } else if (bs.length === 1) {
       // Bestehender BS → gleicher Tab
-      navigate(`/accounting/buchungssaetze?edit=${bs[0].id}`)
+      navigate(`/accounting/buchungssaetze?edit=${bs[0].id}&from=transactions`)
     } else {
       setShowBsSelect(tx.id)
     }
@@ -711,7 +711,7 @@ export default function TransactionsPage() {
                                       {(bsForTx[tx.id] ?? []).map((bs: any) => (
                                         <button key={bs.id}
                                           className="w-full text-left text-xs px-2 py-1.5 rounded hover:bg-blue-50 border border-gray-100"
-                                          onClick={() => { setShowBsSelect(null); navigate('/accounting/buchungssaetze') }}>
+                                          onClick={() => { setShowBsSelect(null); navigate(`/accounting/buchungssaetze?edit=${bs.id}&from=transactions`) }}>
                                           <span className="font-mono text-blue-700">#{bs.nummer}</span>
                                           <span className="ml-2 text-gray-600">{bs.datum}</span>
                                           <span className="ml-2 text-gray-500 truncate">{bs.buchungstext}</span>

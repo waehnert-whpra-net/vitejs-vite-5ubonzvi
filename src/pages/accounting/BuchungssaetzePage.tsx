@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   Plus, Pencil, Trash2, Save, X, ChevronDown, ChevronUp,
   Paperclip, Link, Upload, Search, ExternalLink,
-  Loader2, CheckCircle, FolderOpen
+  Loader2, CheckCircle, FolderOpen, ArrowLeft
 } from 'lucide-react'
 import type { Buchungssatz, Buchung } from '@/hooks/useBuchungssaetze'
 
@@ -199,6 +199,7 @@ export default function BuchungssaetzePage() {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const { data: appSettings } = useAppSettings(['default_belege_folder', 'default_belege_folder_eingang', 'default_belege_folder_ausgang', 'default_belege_folder_sonstiges'])
+  const [fromTransactions, setFromTransactions] = useState(false)
   const [statusFilter, setStatusFilter] = useState('__all__')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -275,6 +276,10 @@ export default function BuchungssaetzePage() {
     if (!editId || !buchungssaetze || buchungssaetze.length === 0) return
     const bs = buchungssaetze.find(b => b.id === editId)
     if (bs && editingId !== editId) {
+      // Herkunft merken (für Zurück-Button)
+      if (searchParams.get('from') === 'transactions') {
+        setFromTransactions(true)
+      }
       startEdit(bs).then(() => {
         // Transaktion vorauswählen wenn mitübergeben
         const txParam = searchParams.get('tx')
@@ -366,7 +371,7 @@ export default function BuchungssaetzePage() {
   }
 
   const cancel = () => {
-    setEditingId(null); setBsForm(emptyBsForm())
+    setEditingId(null); setBsForm(emptyBsForm()); setFromTransactions(false)
     setBuchungenForm([]); setActiveBuchungIdx(0); setLinkedTxIds([]); setLoadedLinkedTxs([])
     setKiVorschlag(null); setSelectedTxForKi(null); setReferenzBsId(null); setReferenzStoragePath(null)
     setBelegFile(null); setBelegPreviewUrl(null); setBelegPreviewMime(null)
@@ -729,9 +734,22 @@ export default function BuchungssaetzePage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-base">{editingId === 'new' ? 'Neuer Buchungssatz' : 'Buchungssatz bearbeiten'}</CardTitle>
-              <Button variant="ghost" size="sm" onClick={cancel} className="gap-1.5 text-gray-500 hover:text-gray-700">
-                <X className="h-4 w-4" />Schließen
-              </Button>
+              <div className="flex items-center gap-2">
+                {fromTransactions && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { cancel(); navigate('/accounting/transactions') }}
+                    className="gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Zurück zur Geldkontobewegung
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" onClick={cancel} className="gap-1.5 text-gray-500 hover:text-gray-700">
+                  <X className="h-4 w-4" />Schließen
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-5">
