@@ -337,9 +337,10 @@ export default function TransactionsPage() {
         .insert({
           datum: tx.booking_date,
           herkunft: 'geldkontobewegung',
-          status: 'offen',
+          status: 'bezahlt',
           ki_vorlage: false,
           buchungstext: [tx.counterpart_name, tx.purpose].filter(Boolean).join(' – ') || '',
+          belegdatum: tx.booking_date || null,
           created_by: user?.id,
           created_by_name: creatorName,
         })
