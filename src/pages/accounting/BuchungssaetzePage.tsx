@@ -824,22 +824,22 @@ export default function BuchungssaetzePage() {
     if (txs.length === 0) return false
     const buchungen = bs.buchungen ?? []
     // 1. Keine Buchungen vorhanden
-    if (buchungen.length === 0) { console.log('[isBsIncomplete] BS#' + bs.nummer + ': Grund 1 – keine Buchungen'); return true }
+    if (buchungen.length === 0) return true
     // 2. Summe stimmt nicht mit Geldkontobewegung überein
     const txBetrag = Math.abs((txs[0]?.transactions as any)?.amount ?? 0)
     const bsSumme = Math.abs(totalBuchungen(bs))
-    if (txBetrag > 0 && Math.abs(bsSumme - txBetrag) > 0.02) { console.log('[isBsIncomplete] BS#' + bs.nummer + ': Grund 2 – Betrag stimmt nicht: txBetrag=' + txBetrag + ' bsSumme=' + bsSumme); return true }
+    if (txBetrag > 0 && Math.abs(bsSumme - txBetrag) > 0.02) return true
     // 3. Fehlende Pflichtfelder in Buchungen
     const buchungUnvollständig = buchungen.some(b =>
       !b.datum || !b.betrag || !b.sollkonto_id || !b.habenkonto_id || !b.buchungstext
     )
-    if (buchungUnvollständig) { console.log('[isBsIncomplete] BS#' + bs.nummer + ': Grund 3 – Buchungszeile unvollständig', buchungen); return true }
+    if (buchungUnvollständig) return true
     // 4. Kein Beleg verknüpft
-    if (!(bs as any).beleg_sharepoint_url && !(bs as any).beleg_storage_path) { console.log('[isBsIncomplete] BS#' + bs.nummer + ': Grund 4 – kein Beleg'); return true }
+    if (!(bs as any).beleg_sharepoint_url && !(bs as any).beleg_storage_path) return true
     // 5. Fehlende Belegfelder
-    if (!(bs as any).belegtyp || !(bs as any).belegnummer || !(bs as any).belegdatum || !(bs as any).contact_id) { console.log('[isBsIncomplete] BS#' + bs.nummer + ': Grund 5 – Belegfelder fehlen: belegtyp=' + (bs as any).belegtyp + ' belegnummer=' + (bs as any).belegnummer + ' belegdatum=' + (bs as any).belegdatum + ' contact_id=' + (bs as any).contact_id); return true }
+    if (!(bs as any).belegtyp || !(bs as any).belegnummer || !(bs as any).belegdatum || !(bs as any).contact_id) return true
     // 6. Fehlende Grunddaten
-    if (!bs.datum || !bs.buchungstext) { console.log('[isBsIncomplete] BS#' + bs.nummer + ': Grund 6 – datum/buchungstext fehlt'); return true }
+    if (!bs.datum || !bs.buchungstext) return true
     return false
   }
 
