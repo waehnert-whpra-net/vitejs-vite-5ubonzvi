@@ -67,15 +67,15 @@ serve(async (req) => {
 
     const newUserId = inviteData.user.id
 
-    // Create profile entry
+    // Create profile entry (id = user_id in user_profiles)
     await adminClient.from('user_profiles').upsert({
-      user_id: newUserId,
+      id: newUserId,
       first_name: firstName || null,
       last_name: lastName || null,
       display_name: [firstName, lastName].filter(Boolean).join(' ') || null,
       is_active: true,
       notify_new_users: false,
-    }, { onConflict: 'user_id' })
+    }, { onConflict: 'id' })
 
     // Assign role if provided
     if (roleId) {

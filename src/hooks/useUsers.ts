@@ -94,18 +94,18 @@ export function useUpdateUser() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (payload: UpdateUserPayload) => {
-      // Update profile fields
+      // Update profile fields (id = user_id in user_profiles)
       const { error: profileError } = await supabase
         .from('user_profiles')
-        .upsert({
-          user_id: payload.userId,
+        .update({
           first_name: payload.firstName,
           last_name: payload.lastName,
           display_name: payload.displayName,
           is_active: payload.isActive,
           expires_at: payload.expiresAt || null,
           notify_new_users: payload.notifyNewUsers,
-        }, { onConflict: 'user_id' })
+        })
+        .eq('id', payload.userId)
       if (profileError) throw profileError
 
       // Update role
