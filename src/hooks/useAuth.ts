@@ -20,12 +20,11 @@ export function useAuth() {
         setUser(session?.user ?? null)
         setLoading(false)
 
-        // last_login bei jedem (erneuten) Login aktualisieren
-        if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
+        // last_login bei Session-Start und Login aktualisieren
+        if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') && session?.user) {
           supabase
             .from('user_profiles')
-            .update({ last_login: new Date().toISOString() })
-            .eq('id', session.user.id)
+            .upsert({ id: session.user.id, last_login: new Date().toISOString() }, { onConflict: 'id' })
             .then(() => {})
         }
       }
