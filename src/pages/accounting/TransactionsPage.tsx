@@ -6,6 +6,7 @@ import {
   useUpdateTransactionNotes, useAccountTypes, useImportPatterns, buildDedupHash
 } from '@/hooks/useAccounting'
 import { useIsAdmin } from '@/hooks/usePermissions'
+import { usePersistedState } from '@/hooks/usePersistedState'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -84,12 +85,12 @@ function SortIcon({ field, sortField, sortDir }: { field: string; sortField: str
 }
 
 export default function TransactionsPage() {
-  const [search, setSearch] = useState('')
-  const [accountTypeFilter, setAccountTypeFilter] = useState(ALL)
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
-  const [sortField, setSortField] = useState<SortField>('booking_date')
-  const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const [search, setSearch] = usePersistedState<string>('tx_search', '')
+  const [accountTypeFilter, setAccountTypeFilter] = usePersistedState<string>('tx_account_filter', ALL)
+  const [dateFrom, setDateFrom] = usePersistedState<string>('tx_date_from', '')
+  const [dateTo, setDateTo] = usePersistedState<string>('tx_date_to', '')
+  const [sortField, setSortField] = usePersistedState<SortField>('tx_sort_field', 'booking_date')
+  const [sortDir, setSortDir] = usePersistedState<SortDir>('tx_sort_dir', 'desc')
   const [searchParams] = useSearchParams()
   const initialExpandId = searchParams.get('expand')
 
@@ -97,7 +98,7 @@ export default function TransactionsPage() {
     initialExpandId ? new Set([initialExpandId]) : new Set()
   )
 
-  const { data: transactions, isLoading } = useTransactions({
+    const { data: transactions, isLoading } = useTransactions({
     account_type_id: accountTypeFilter !== ALL ? accountTypeFilter : undefined,
     date_from: dateFrom || undefined,
     date_to: dateTo || undefined,
@@ -358,7 +359,7 @@ export default function TransactionsPage() {
       window.open(`/accounting/buchungssaetze?edit=${newBs.id}&tx=${txParam}&from=transactions`, '_blank')
     } else if (bs.length === 1) {
       // Bestehender BS → gleicher Tab
-      navigate(`/accounting/buchungssaetze?edit=${bs[0].id}&from=transactions`)
+      navigate(`/accounting/buchungssaetze?edit=${bs[0].id}&from=transactions&expand=${tx.id}`)
     } else {
       setShowBsSelect(tx.id)
     }
@@ -561,7 +562,21 @@ export default function TransactionsPage() {
       <div className="flex gap-3 mb-4 flex-wrap">
         <div className="relative flex-1 min-w-48">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input placeholder="Name, IBAN, Verwendungszweck..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+          <Input
+            placeholder="Name, IBAN, Verwendungszweck..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pl-10 pr-8"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              aria-label="Suche löschen"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
         <Select value={accountTypeFilter} onValueChange={setAccountTypeFilter}>
           <SelectTrigger className="w-48"><SelectValue placeholder="Alle Kontoarten" /></SelectTrigger>
@@ -570,8 +585,22 @@ export default function TransactionsPage() {
             {accountTypes?.map(at => <SelectItem key={at.id} value={at.id}>{at.name}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-40" />
-        <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-40" />
+        <div className="relative">
+          <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={`w-40 ${dateFrom ? 'pr-8' : ''}`} />
+          {dateFrom && (
+            <button onClick={() => setDateFrom('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" aria-label="Von-Datum löschen">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+        <div className="relative">
+          <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={`w-40 ${dateTo ? 'pr-8' : ''}`} />
+          {dateTo && (
+            <button onClick={() => setDateTo('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" aria-label="Bis-Datum löschen">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Tabelle */}
@@ -711,7 +740,7 @@ export default function TransactionsPage() {
                                       {(bsForTx[tx.id] ?? []).map((bs: any) => (
                                         <button key={bs.id}
                                           className="w-full text-left text-xs px-2 py-1.5 rounded hover:bg-blue-50 border border-gray-100"
-                                          onClick={() => { setShowBsSelect(null); navigate(`/accounting/buchungssaetze?edit=${bs.id}&from=transactions`) }}>
+                                          onClick={() => { setShowBsSelect(null); navigate(`/accounting/buchungssaetze?edit=${bs.id}&from=transactions&expand=${tx.id}`) }}>
                                           <span className="font-mono text-blue-700">#{bs.nummer}</span>
                                           <span className="ml-2 text-gray-600">{bs.datum}</span>
                                           <span className="ml-2 text-gray-500 truncate">{bs.buchungstext}</span>

@@ -200,6 +200,7 @@ export default function BuchungssaetzePage() {
 
   const { data: appSettings } = useAppSettings(['default_belege_folder', 'default_belege_folder_eingang', 'default_belege_folder_ausgang', 'default_belege_folder_sonstiges'])
   const [fromTransactions, setFromTransactions] = useState(false)
+  const [expandTxId, setExpandTxId] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState('__all__')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -279,6 +280,7 @@ export default function BuchungssaetzePage() {
       // Herkunft merken (für Zurück-Button)
       if (searchParams.get('from') === 'transactions') {
         setFromTransactions(true)
+        setExpandTxId(searchParams.get('expand') ?? null)
       }
       startEdit(bs).then(() => {
         // Transaktion vorauswählen wenn mitübergeben
@@ -371,7 +373,7 @@ export default function BuchungssaetzePage() {
   }
 
   const cancel = () => {
-    setEditingId(null); setBsForm(emptyBsForm()); setFromTransactions(false)
+    setEditingId(null); setBsForm(emptyBsForm()); setFromTransactions(false); setExpandTxId(null)
     setBuchungenForm([]); setActiveBuchungIdx(0); setLinkedTxIds([]); setLoadedLinkedTxs([])
     setKiVorschlag(null); setSelectedTxForKi(null); setReferenzBsId(null); setReferenzStoragePath(null)
     setBelegFile(null); setBelegPreviewUrl(null); setBelegPreviewMime(null)
@@ -739,7 +741,7 @@ export default function BuchungssaetzePage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => { cancel(); navigate('/accounting/transactions') }}
+                    onClick={() => { cancel(); navigate(`/accounting/transactions${expandTxId ? `?expand=${expandTxId}` : ''}`) }}
                     className="gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700"
                   >
                     <ArrowLeft className="h-4 w-4" />
