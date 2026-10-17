@@ -16,6 +16,7 @@ import UsageForm from '@/modules/properties/pages/UsageForm'
 import GroupUsageForm from '@/modules/properties/pages/GroupUsageForm'
 import CalendarView from '@/modules/calendar/pages/CalendarView'
 import UserList from '@/pages/UserList'
+import UserForm from '@/pages/UserForm'
 import OptionsPage from '@/pages/accounting/OptionsPage'
 import SetupPage from '@/pages/accounting/SetupPage'
 import TransactionsPage from '@/pages/accounting/TransactionsPage'
@@ -85,6 +86,8 @@ function AppRoutes() {
           <Route path="properties/group-usages/:id/edit" element={<GroupUsageForm />} />
           <Route path="calendar" element={<CalendarView />} />
           <Route path="users" element={<UserList />} />
+          <Route path="users/new" element={<UserForm />} />
+          <Route path="users/:id/edit" element={<UserForm />} />
           <Route path="options" element={<OptionsPage />} />
           <Route path="setup" element={<SetupPage />} />
           <Route path="accounting/transactions" element={<TransactionsPage />} />

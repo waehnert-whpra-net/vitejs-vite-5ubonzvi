@@ -1,9 +1,11 @@
+import { useNavigate } from 'react-router-dom'
 import { useAllUsers, useAllRoles, useSetNotifyNewUsers, useSetUserRole } from '@/hooks/useUsers'
 import { useIsSuperAdmin } from '@/hooks/usePermissions'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Users, Mail, ShieldCheck, Clock, Bell } from 'lucide-react'
+import { Users, Mail, ShieldCheck, Clock, Bell, Plus, Pencil } from 'lucide-react'
 
 const ROLE_COLORS: Record<string, string> = {
   'Super-Admin': '#991b1b',
@@ -17,6 +19,7 @@ const ROLE_COLORS: Record<string, string> = {
 const NO_ROLE = '__none__'
 
 export default function UserList() {
+  const navigate = useNavigate()
   const { data: users, isLoading, error } = useAllUsers()
   const { data: roles } = useAllRoles()
   const { data: isSuperAdmin } = useIsSuperAdmin()
@@ -34,11 +37,17 @@ export default function UserList() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Nutzer & Rechte</h1>
-        <p className="text-gray-500 mt-1">
-          {users?.length ?? 0} Nutzer
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Nutzer & Rechte</h1>
+          <p className="text-gray-500 mt-1">{users?.length ?? 0} Nutzer</p>
+        </div>
+        {isSuperAdmin && (
+          <Button onClick={() => navigate('/users/new')} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Neuer Nutzer
+          </Button>
+        )}
       </div>
 
       {error && (
@@ -129,26 +138,37 @@ export default function UserList() {
                     )}
                   </div>
 
-                  {/* Super-Admin Steuerung: Rolle + Benachrichtigung */}
+                  {/* Super-Admin Steuerung: Rolle + Benachrichtigung + Bearbeiten */}
                   {isSuperAdmin && (
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      <Select
-                        value={u.role_id ?? NO_ROLE}
-                        onValueChange={v => setRole.mutate({
-                          userId: u.user_id,
-                          roleId: v === NO_ROLE ? null : v,
-                        })}
-                      >
-                        <SelectTrigger className="w-44 h-9">
-                          <SelectValue placeholder="Rolle wählen" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={NO_ROLE}>Keine Rolle</SelectItem>
-                          {roles?.map(r => (
-                            <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <div className="flex flex-col gap-2 flex-shrink-0 items-end">
+                      <div className="flex items-center gap-2">
+                        <Select
+                          value={u.role_id ?? NO_ROLE}
+                          onValueChange={v => setRole.mutate({
+                            userId: u.user_id,
+                            roleId: v === NO_ROLE ? null : v,
+                          })}
+                        >
+                          <SelectTrigger className="w-40 h-9">
+                            <SelectValue placeholder="Rolle wählen" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={NO_ROLE}>Keine Rolle</SelectItem>
+                            {roles?.map(r => (
+                              <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => navigate(`/users/${u.user_id}/edit`)}
+                          title="Nutzer bearbeiten"
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </div>
 
                       <label
                         className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer whitespace-nowrap"
