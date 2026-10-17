@@ -135,6 +135,9 @@ export default function UnitList() {
                         <span className="flex items-center gap-1">
                           <Users className="h-3 w-3" />
                           {unit.max_persons} Pers.
+                          {(unit as any).max_extra_beds > 0 && (
+                            <span className="text-gray-300">+{(unit as any).max_extra_beds} Aufbettung</span>
+                          )}
                         </span>
                       )}
                       {unit.sqm_measured != null && (
