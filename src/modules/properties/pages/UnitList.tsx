@@ -134,10 +134,10 @@ export default function UnitList() {
                       {unit.max_persons != null && (
                         <span className="flex items-center gap-1">
                           <Users className="h-3 w-3" />
-                          {unit.max_persons} Pers.
-                          {(unit as any).max_extra_beds > 0 && (
-                            <span>+{(unit as any).max_extra_beds} Aufbettung</span>
-                          )}
+                          {(unit as any).max_extra_beds > 0
+                            ? `${unit.max_persons - (unit as any).max_extra_beds} Betten +${(unit as any).max_extra_beds} Aufbettung`
+                            : `${unit.max_persons} Betten`
+                          }
                         </span>
                       )}
                       {unit.sqm_measured != null && (
