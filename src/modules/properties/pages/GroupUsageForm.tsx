@@ -12,10 +12,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
   ArrowLeft, Save, CalendarDays, Building2,
-  Link, FolderOpen, Check, X, Bed
+  Link, FolderOpen, Check, X, Bed, Users
 } from 'lucide-react'
 
-type UnitPersons = { adults: number; children: number }
+type UnitPersons = { adults: number; children: number; extraBeds: number }
 
 export default function GroupUsageForm() {
   const navigate = useNavigate()
@@ -38,7 +38,7 @@ export default function GroupUsageForm() {
     sharepoint_url: '',
   })
 
-  // Ausgewählte Einheiten: Map unitId → { adults, children }
+  // Ausgewählte Einheiten: Map unitId → { adults, children, extraBeds }
   const [unitPersons, setUnitPersons] = useState<Map<string, UnitPersons>>(new Map())
   const [saving, setSaving] = useState(false)
 
@@ -64,6 +64,7 @@ export default function GroupUsageForm() {
           map.set(u.unit_id, {
             adults: u.adults_count ?? 0,
             children: u.children_count ?? 0,
+            extraBeds: (u as any).extra_beds_count ?? 0,
           })
         }
       }
@@ -71,7 +72,7 @@ export default function GroupUsageForm() {
     }
   }, [existing])
 
-  // Einheit auswählen: Standardwert adults = max_persons der Einheit
+  // Einheit auswählen: Standardwert adults = max_persons
   const toggleUnit = (unit: any) => {
     setUnitPersons(prev => {
       const next = new Map(prev)
@@ -81,17 +82,37 @@ export default function GroupUsageForm() {
         next.set(unit.id, {
           adults: unit.max_persons ?? 0,
           children: 0,
+          extraBeds: 0,
         })
       }
       return next
     })
   }
 
-  const setPersons = (unitId: string, field: 'adults' | 'children', value: number) => {
+  // Personenzahl setzen mit Limit-Logik
+  const setPersons = (unitId: string, field: 'adults' | 'children' | 'extraBeds', value: number, unit: any) => {
     setUnitPersons(prev => {
       const next = new Map(prev)
       const cur = next.get(unitId)
-      if (cur) next.set(unitId, { ...cur, [field]: Math.max(0, value) })
+      if (!cur) return next
+
+      const maxTotal = (unit.max_persons ?? 0) + (unit.max_extra_beds ?? 0)
+      const maxExtra = unit.max_extra_beds ?? 0
+
+      const updated = { ...cur, [field]: Math.max(0, value) }
+
+      // Aufbettungen dürfen max_extra_beds nicht überschreiten
+      updated.extraBeds = Math.min(updated.extraBeds, maxExtra)
+
+      // Summe aller drei darf maxTotal nicht überschreiten
+      const total = updated.adults + updated.children + updated.extraBeds
+      if (total > maxTotal) {
+        // Aktuell geändertes Feld reduzieren
+        const overflow = total - maxTotal
+        updated[field] = Math.max(0, updated[field] - overflow)
+      }
+
+      next.set(unitId, updated)
       return next
     })
   }
@@ -117,7 +138,6 @@ export default function GroupUsageForm() {
       })
 
       const existingUsages = existing?.usages ?? []
-      const existingUnitIds = new Set(existingUsages.map(u => u.unit_id).filter(Boolean) as string[])
       const selectedUnitIds = new Set(unitPersons.keys())
 
       // Entfernte Einheiten deaktivieren
@@ -131,14 +151,13 @@ export default function GroupUsageForm() {
       for (const [unitId, persons] of unitPersons) {
         const existingUsage = existingUsages.find(u => u.unit_id === unitId)
         if (existingUsage) {
-          // Personenzahlen aktualisieren
           await saveUsage.mutateAsync({
             id: existingUsage.id,
             adults_count: persons.adults,
             children_count: persons.children,
+            extra_beds_count: persons.extraBeds,
           } as any)
         } else {
-          // Neu anlegen
           await saveUsage.mutateAsync({
             unit_id: unitId,
             contact_id: form.contact_id || null,
@@ -148,6 +167,7 @@ export default function GroupUsageForm() {
             is_unlimited: false,
             adults_count: persons.adults,
             children_count: persons.children,
+            extra_beds_count: persons.extraBeds,
             is_active: true,
             show_in_calendar: true,
           } as any)
@@ -162,6 +182,34 @@ export default function GroupUsageForm() {
 
   const dateRangeOk = form.date_from && form.date_to && form.date_from <= form.date_to
   const selectedCount = unitPersons.size
+
+  // Gesamtsummen über alle gewählten Einheiten
+  const totals = Array.from(unitPersons.values()).reduce(
+    (acc, p) => ({ adults: acc.adults + p.adults, children: acc.children + p.children, extraBeds: acc.extraBeds + p.extraBeds }),
+    { adults: 0, children: 0, extraBeds: 0 }
+  )
+
+  // Stepper-Hilfsfunktion
+  const Stepper = ({
+    label, value, onMinus, onPlus, max,
+  }: { label: string; value: number; onMinus: () => void; onPlus: () => void; max?: number }) => (
+    <div className="flex items-center gap-1.5 flex-1">
+      <span className="text-xs text-gray-500 w-22 shrink-0">{label}</span>
+      <button
+        onClick={onMinus}
+        className="w-6 h-6 rounded border border-gray-300 text-gray-600 hover:bg-gray-100 text-sm font-bold leading-none flex items-center justify-center"
+      >−</button>
+      <span className="w-8 text-center text-sm tabular-nums">{value}</span>
+      <button
+        onClick={onPlus}
+        disabled={max !== undefined && value >= max}
+        className="w-6 h-6 rounded border border-gray-300 text-gray-600 hover:bg-gray-100 text-sm font-bold leading-none flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+      >+</button>
+      {max !== undefined && (
+        <span className="text-xs text-gray-400">/ {max}</span>
+      )}
+    </div>
+  )
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -287,6 +335,26 @@ export default function GroupUsageForm() {
                   <Badge className="bg-indigo-500 text-white">{selectedCount} gewählt</Badge>
                 )}
               </CardTitle>
+
+              {/* Gesamtsumme aller gewählten Einheiten */}
+              {selectedCount > 0 && (
+                <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                  <span className="flex items-center gap-1">
+                    <Users className="h-3 w-3 text-indigo-400" />
+                    <span className="text-indigo-700 font-medium">{totals.adults}</span> Erw.
+                  </span>
+                  <span>·</span>
+                  <span>
+                    <span className="text-indigo-700 font-medium">{totals.children}</span> Kinder
+                  </span>
+                  <span>·</span>
+                  <span className="flex items-center gap-1">
+                    <Bed className="h-3 w-3 text-indigo-400" />
+                    <span className="text-indigo-700 font-medium">{totals.extraBeds}</span> Aufbettungen
+                  </span>
+                </div>
+              )}
+
               {!dateRangeOk && (
                 <p className="text-xs text-amber-600 flex items-center gap-1">
                   <CalendarDays className="h-3 w-3" />
@@ -301,6 +369,8 @@ export default function GroupUsageForm() {
                     const persons = unitPersons.get(unit.id)
                     const selected = !!persons
                     const available = unit.is_available
+                    const maxTotal = (unit.max_persons ?? 0) + (unit.max_extra_beds ?? 0)
+                    const maxExtra = unit.max_extra_beds ?? 0
 
                     return (
                       <div
@@ -363,49 +433,39 @@ export default function GroupUsageForm() {
                         {/* Personenanzahl — nur wenn ausgewählt */}
                         {selected && persons && (
                           <div
-                            className="px-3 pb-3 pt-0 border-t border-indigo-200 mt-0"
+                            className="px-3 pb-3 pt-2 border-t border-indigo-200 space-y-2"
                             onClick={e => e.stopPropagation()}
                           >
-                            <div className="flex items-center gap-3 mt-2">
-                              {/* Erwachsene */}
-                              <div className="flex items-center gap-1.5 flex-1">
-                                <span className="text-xs text-gray-500 w-20 shrink-0">Erwachsene</span>
-                                <button
-                                  onClick={() => setPersons(unit.id, 'adults', persons.adults - 1)}
-                                  className="w-6 h-6 rounded border border-gray-300 text-gray-600 hover:bg-gray-100 text-sm font-bold leading-none flex items-center justify-center"
-                                >−</button>
-                                <input
-                                  type="number"
-                                  min={0}
-                                  value={persons.adults}
-                                  onChange={e => setPersons(unit.id, 'adults', parseInt(e.target.value) || 0)}
-                                  className="w-10 text-center text-sm border border-gray-300 rounded h-6 px-1"
-                                />
-                                <button
-                                  onClick={() => setPersons(unit.id, 'adults', persons.adults + 1)}
-                                  className="w-6 h-6 rounded border border-gray-300 text-gray-600 hover:bg-gray-100 text-sm font-bold leading-none flex items-center justify-center"
-                                >+</button>
-                              </div>
-                              {/* Kinder */}
-                              <div className="flex items-center gap-1.5 flex-1">
-                                <span className="text-xs text-gray-500 w-12 shrink-0">Kinder</span>
-                                <button
-                                  onClick={() => setPersons(unit.id, 'children', persons.children - 1)}
-                                  className="w-6 h-6 rounded border border-gray-300 text-gray-600 hover:bg-gray-100 text-sm font-bold leading-none flex items-center justify-center"
-                                >−</button>
-                                <input
-                                  type="number"
-                                  min={0}
-                                  value={persons.children}
-                                  onChange={e => setPersons(unit.id, 'children', parseInt(e.target.value) || 0)}
-                                  className="w-10 text-center text-sm border border-gray-300 rounded h-6 px-1"
-                                />
-                                <button
-                                  onClick={() => setPersons(unit.id, 'children', persons.children + 1)}
-                                  className="w-6 h-6 rounded border border-gray-300 text-gray-600 hover:bg-gray-100 text-sm font-bold leading-none flex items-center justify-center"
-                                >+</button>
-                              </div>
-                            </div>
+                            {/* Hinweis max. Personen */}
+                            <p className="text-xs text-gray-400">
+                              Max. {unit.max_persons ?? 0} Betten
+                              {maxExtra > 0 ? ` + ${maxExtra} Aufbettungen` : ''}
+                              {' '}— Summe: {persons.adults + persons.children + persons.extraBeds} / {maxTotal}
+                            </p>
+
+                            <Stepper
+                              label="Erwachsene"
+                              value={persons.adults}
+                              onMinus={() => setPersons(unit.id, 'adults', persons.adults - 1, unit)}
+                              onPlus={() => setPersons(unit.id, 'adults', persons.adults + 1, unit)}
+                              max={maxTotal - persons.children - persons.extraBeds}
+                            />
+                            <Stepper
+                              label="Kinder"
+                              value={persons.children}
+                              onMinus={() => setPersons(unit.id, 'children', persons.children - 1, unit)}
+                              onPlus={() => setPersons(unit.id, 'children', persons.children + 1, unit)}
+                              max={maxTotal - persons.adults - persons.extraBeds}
+                            />
+                            {maxExtra > 0 && (
+                              <Stepper
+                                label="Aufbettungen"
+                                value={persons.extraBeds}
+                                onMinus={() => setPersons(unit.id, 'extraBeds', persons.extraBeds - 1, unit)}
+                                onPlus={() => setPersons(unit.id, 'extraBeds', persons.extraBeds + 1, unit)}
+                                max={Math.min(maxExtra, maxTotal - persons.adults - persons.children)}
+                              />
+                            )}
                           </div>
                         )}
                       </div>
