@@ -15,10 +15,19 @@ export function useAuth() {
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
         setSession(session)
         setUser(session?.user ?? null)
         setLoading(false)
+
+        // last_login bei jedem (erneuten) Login aktualisieren
+        if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
+          supabase
+            .from('user_profiles')
+            .update({ last_login: new Date().toISOString() })
+            .eq('id', session.user.id)
+            .then(() => {})
+        }
       }
     )
 
