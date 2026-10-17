@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAllUsers, useAllRoles, useUpdateUser, useInviteUser } from '@/hooks/useUsers'
 import { useIsSuperAdmin } from '@/hooks/usePermissions'
+import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -35,15 +36,15 @@ export default function UserForm() {
   const [notifyNewUsers, setNotifyNewUsers] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [formPopulated, setFormPopulated] = useState(false)
 
-  // Populate form when editing
+  // Populate form fields from allUsers (name, active, etc.)
   useEffect(() => {
-    if (existingUser) {
+    if (existingUser && !formPopulated) {
       setFirstName(existingUser.first_name ?? '')
       setLastName(existingUser.last_name ?? '')
       setDisplayName(existingUser.display_name ?? '')
       setEmail(existingUser.email ?? '')
-      setRoleId(existingUser.role_id ?? NO_ROLE)
       setIsActive(existingUser.is_active ?? true)
       setExpiresAt(
         existingUser.expires_at
@@ -51,8 +52,22 @@ export default function UserForm() {
           : ''
       )
       setNotifyNewUsers(existingUser.notify_new_users ?? false)
+      setFormPopulated(true)
     }
-  }, [existingUser])
+  }, [existingUser, formPopulated])
+
+  // Rolle direkt aus der DB laden (umgeht Cache-Problem)
+  useEffect(() => {
+    if (!id || isNew) return
+    supabase
+      .from('user_roles')
+      .select('role_id')
+      .eq('user_id', id)
+      .maybeSingle()
+      .then(({ data }) => {
+        setRoleId(data?.role_id ?? NO_ROLE)
+      })
+  }, [id, isNew])
 
   // Guard: only SuperAdmin may access
   if (!loadingPerm && !isSuperAdmin) {
