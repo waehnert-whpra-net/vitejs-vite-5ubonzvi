@@ -136,7 +136,7 @@ export default function UnitList() {
                           <Users className="h-3 w-3" />
                           {unit.max_persons} Pers.
                           {(unit as any).max_extra_beds > 0 && (
-                            <span className="text-gray-300">+{(unit as any).max_extra_beds} Aufbettung</span>
+                            <span>+{(unit as any).max_extra_beds} Aufbettung</span>
                           )}
                         </span>
                       )}
