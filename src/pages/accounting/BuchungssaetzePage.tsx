@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   Plus, Pencil, Trash2, Save, X, ChevronDown, ChevronUp,
   Paperclip, Link, Upload, Search, ExternalLink,
-  Loader2, CheckCircle, FolderOpen, ArrowLeft
+  Loader2, CheckCircle, FolderOpen, ArrowLeft, AlertTriangle
 } from 'lucide-react'
 import type { Buchungssatz, Buchung } from '@/hooks/useBuchungssaetze'
 
@@ -242,6 +242,7 @@ export default function BuchungssaetzePage() {
   const [analyzeResult, setAnalyzeResult] = useState<any | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [incompleteHinweise, setIncompleteHinweise] = useState<string[]>([])
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [showFilePicker, setShowFilePicker] = useState(false)
@@ -308,7 +309,7 @@ export default function BuchungssaetzePage() {
     setBuchungenForm([emptyBuchung(new Date().toISOString().split('T')[0])])
     setLinkedTxIds([])
     setBelegFile(null); setBelegPreviewUrl(null)
-    setEditingId('new'); setError(null)
+    setEditingId('new'); setError(null); setIncompleteHinweise([])
   }
 
   const startEdit = async (bs: Buchungssatz) => {
@@ -339,7 +340,7 @@ export default function BuchungssaetzePage() {
     setBelegFile(null); setBelegPreviewUrl(null); setBelegPreviewMime(null)
     setReferenzStoragePath(null); setReferenzBsId(null)
     setAnalyzeResult(null); setContactSuggestion(null)
-    setEditingId(bs.id); setError(null)
+    setEditingId(bs.id); setError(null); setIncompleteHinweise([])
 
     // Belegmodus setzen
     if (spPath) {
@@ -802,6 +803,38 @@ export default function BuchungssaetzePage() {
         setEditingId(savedId)
       }
       setError(null)
+      // Vollständigkeitsprüfung nach dem Speichern — nur wenn Transaktion verknüpft
+      if (linkedTxIds.length > 0) {
+        const hinweise: string[] = []
+        const validBuchungenSaved = buchungenForm.filter(b => b.betrag.trim() !== '')
+        if (validBuchungenSaved.length === 0) {
+          hinweise.push('Mindestens eine Buchungszeile mit Betrag erforderlich')
+        } else {
+          const txForPruef = selectedTxForKi ?? loadedLinkedTxs[0]
+          if (txForPruef) {
+            const txBetrag = Math.abs((txForPruef as any).amount ?? 0)
+            const bsSumme = validBuchungenSaved.reduce((s, b) => s + (parseFloat(b.betrag.replace(',', '.')) || 0), 0)
+            if (txBetrag > 0 && Math.abs(Math.abs(bsSumme) - txBetrag) > 0.02) {
+              hinweise.push(`Buchungssumme (${Math.abs(bsSumme).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}) stimmt nicht mit Geldkontobewegung (${txBetrag.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}) überein`)
+            }
+          }
+          const buchungUnvollständig = validBuchungenSaved.some(b =>
+            !b.datum || !b.betrag || !b.sollkonto_id || !b.habenkonto_id || !b.buchungstext
+          )
+          if (buchungUnvollständig) hinweise.push('Eine oder mehrere Buchungszeilen haben fehlende Pflichtfelder (Datum, Betrag, Soll-/Habenkonto, Buchungstext)')
+        }
+        const hasBeleg = bsForm.beleg_sharepoint_url || bsForm.beleg_sharepoint_path || referenzStoragePath || belegFile
+        if (!hasBeleg) hinweise.push('Kein Beleg verknüpft')
+        if (!bsForm.belegtyp) hinweise.push('Belegtyp fehlt')
+        if (!bsForm.belegnummer) hinweise.push('Belegnummer fehlt')
+        if (!bsForm.belegdatum) hinweise.push('Belegdatum fehlt')
+        if (!bsForm.contact_id) hinweise.push('Verknüpfter Kontakt fehlt')
+        if (!bsForm.datum) hinweise.push('Buchungsdatum fehlt')
+        if (!bsForm.buchungstext) hinweise.push('Buchungstext fehlt')
+        setIncompleteHinweise(hinweise)
+      } else {
+        setIncompleteHinweise([])
+      }
     } catch (err: any) {
       setError(err.message ?? 'Fehler beim Speichern')
     } finally {
@@ -1791,6 +1824,21 @@ export default function BuchungssaetzePage() {
             </div>
 
             {error && <p className="text-sm text-red-600">{error}</p>}
+
+            {/* Vollständigkeits-Hinweise nach dem Speichern */}
+            {incompleteHinweise.length > 0 && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs font-medium text-amber-800 mb-1">Buchungssatz gespeichert, aber noch unvollständig:</p>
+                    <ul className="text-xs text-amber-700 space-y-0.5 list-disc list-inside">
+                      {incompleteHinweise.map((h, i) => <li key={i}>{h}</li>)}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Löschen — nur für Admins, nur bei bestehendem BS */}
             {isAdmin && editingId !== 'new' && (
