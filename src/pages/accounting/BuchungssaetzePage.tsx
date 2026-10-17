@@ -921,6 +921,19 @@ export default function BuchungssaetzePage() {
                 </Button>
               </div>
             </div>
+            {incompleteHinweise.length > 0 && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-3 mt-2">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs font-medium text-amber-800 mb-1">Gespeichert, aber noch unvollständig:</p>
+                    <ul className="text-xs text-amber-700 space-y-0.5 list-disc list-inside">
+                      {incompleteHinweise.map((h, i) => <li key={i}>{h}</li>)}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardHeader>
           <CardContent className="space-y-5">
 
@@ -1824,21 +1837,6 @@ export default function BuchungssaetzePage() {
             </div>
 
             {error && <p className="text-sm text-red-600">{error}</p>}
-
-            {/* Vollständigkeits-Hinweise nach dem Speichern */}
-            {incompleteHinweise.length > 0 && (
-              <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
-                <div className="flex items-start gap-2">
-                  <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs font-medium text-amber-800 mb-1">Buchungssatz gespeichert, aber noch unvollständig:</p>
-                    <ul className="text-xs text-amber-700 space-y-0.5 list-disc list-inside">
-                      {incompleteHinweise.map((h, i) => <li key={i}>{h}</li>)}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Löschen — nur für Admins, nur bei bestehendem BS */}
             {isAdmin && editingId !== 'new' && (
