@@ -242,6 +242,8 @@ export default function BuchungssaetzePage() {
   const [analyzeResult, setAnalyzeResult] = useState<any | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [showFilePicker, setShowFilePicker] = useState(false)
 
   // TX-Filter
@@ -373,7 +375,7 @@ export default function BuchungssaetzePage() {
   }
 
   const cancel = () => {
-    setEditingId(null); setBsForm(emptyBsForm()); setFromTransactions(false); setExpandTxId(null)
+    setEditingId(null); setBsForm(emptyBsForm()); setFromTransactions(false); setExpandTxId(null); setConfirmDelete(false)
     setBuchungenForm([]); setActiveBuchungIdx(0); setLinkedTxIds([]); setLoadedLinkedTxs([])
     setKiVorschlag(null); setSelectedTxForKi(null); setReferenzBsId(null); setReferenzStoragePath(null)
     setBelegFile(null); setBelegPreviewUrl(null); setBelegPreviewMime(null)
@@ -1605,14 +1607,59 @@ export default function BuchungssaetzePage() {
 
             {error && <p className="text-sm text-red-600">{error}</p>}
 
-            <div className="flex gap-2">
-              <Button onClick={handleSave} disabled={saving} className="gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button onClick={handleSave} disabled={saving || deleting} className="gap-2">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 {saving ? 'Speichert...' : 'Buchungssatz speichern'}
               </Button>
-              <Button variant="outline" onClick={cancel} className="gap-2">
+              <Button variant="outline" onClick={cancel} disabled={saving || deleting} className="gap-2">
                 <X className="h-4 w-4" />Abbrechen
               </Button>
+
+              {/* Löschen — nur für Admins, nur bei bestehendem BS */}
+              {isAdmin && editingId !== 'new' && (
+                <div className="flex items-center gap-2 ml-auto">
+                  {!confirmDelete ? (
+                    <Button
+                      variant="ghost"
+                      onClick={() => setConfirmDelete(true)}
+                      disabled={saving || deleting}
+                      className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Löschen
+                    </Button>
+                  ) : (
+                    <>
+                      <span className="text-sm text-red-600 font-medium">Wirklich löschen?</span>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={deleting}
+                        onClick={async () => {
+                          setDeleting(true)
+                          try {
+                            await del.mutateAsync(editingId as string)
+                            cancel()
+                          } catch (err: any) {
+                            setError(err.message ?? 'Fehler beim Löschen')
+                            setConfirmDelete(false)
+                          } finally {
+                            setDeleting(false)
+                          }
+                        }}
+                        className="gap-1.5"
+                      >
+                        {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                        Ja, löschen
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setConfirmDelete(false)} disabled={deleting}>
+                        Abbrechen
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
