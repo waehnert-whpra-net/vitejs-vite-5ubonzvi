@@ -337,6 +337,7 @@ export default function BuchungssaetzePage() {
       .filter((t: any) => t.transactions)
       .map((t: any) => t.transactions))
     setBelegFile(null); setBelegPreviewUrl(null); setBelegPreviewMime(null)
+    setReferenzStoragePath(null); setReferenzBsId(null)
     setAnalyzeResult(null); setContactSuggestion(null)
     setEditingId(bs.id); setError(null)
 
@@ -533,7 +534,7 @@ export default function BuchungssaetzePage() {
     const buchungen = (vorlage.buchungen ?? []).sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
     setBuchungenForm(buchungen.map((b: any) => ({
       datum: bsForm.datum || b.datum || '',
-      betrag: b.betrag ?? '',
+      betrag: b.betrag != null ? b.betrag.toString().replace('.', ',') : '',
       buchungstext: b.buchungstext ?? '',
       anmerkungen: b.anmerkungen ?? '',
       sollkonto_id: b.sollkonto?.id ?? '',
