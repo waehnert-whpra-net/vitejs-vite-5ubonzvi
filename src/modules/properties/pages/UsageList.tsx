@@ -163,8 +163,11 @@ export default function UsageList() {
               <CardContent className="p-4">
                 <div className="flex items-center gap-4">
                   {/* Icon */}
-                  <div className="w-12 h-12 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                    <Users className="h-6 w-6 text-indigo-600" />
+                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${(usage as any).group_usage ? 'bg-indigo-600' : 'bg-indigo-100'}`}>
+                    {(usage as any).group_usage
+                      ? <UsersRound className="h-6 w-6 text-white" />
+                      : <Users className="h-6 w-6 text-indigo-600" />
+                    }
                   </div>
 
                   {/* Info */}
@@ -173,6 +176,17 @@ export default function UsageList() {
                       <span className="font-semibold text-gray-900">
                         {getContactName(usage)}
                       </span>
+                      {(usage as any).group_usage && (
+                        <>
+                          <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                            <UsersRound className="h-3 w-3" />
+                            Gastro-Event
+                          </span>
+                          <span className="text-xs text-indigo-600 font-medium">
+                            {(usage as any).group_usage.name}
+                          </span>
+                        </>
+                      )}
                       {usage.unit && (
                         <>
                           {usage.unit.name && (

@@ -218,7 +218,8 @@ export function usePropertyUsages(unitId?: string) {
         .select(`
           *,
           unit:property_units(id, name, short_code, location, color),
-          contact:contacts(id, first_name, last_name, company_name, is_company)
+          contact:contacts(id, first_name, last_name, company_name, is_company),
+          group_usage:group_usages(id, name)
         `)
         .eq('is_active', true)
         .order('date_from', { ascending: false })
