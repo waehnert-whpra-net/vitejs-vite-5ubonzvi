@@ -245,6 +245,9 @@ export default function BuchungssaetzePage() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [showFilePicker, setShowFilePicker] = useState(false)
+  const [showVorlagenDropdown, setShowVorlagenDropdown] = useState(false)
+  const [loadingVorlagen, setLoadingVorlagen] = useState(false)
+  const [matchingVorlagen, setMatchingVorlagen] = useState<any[]>([])
 
   // TX-Filter
   const [txSearch, setTxSearch] = useState('')
@@ -477,6 +480,65 @@ export default function BuchungssaetzePage() {
   const removeBuchung = (i: number) => setBuchungenForm(prev => prev.filter((_, j) => j !== i))
   const updateBuchung = (i: number, field: string, value: string) =>
     setBuchungenForm(prev => prev.map((b, j) => j === i ? { ...b, [field]: value } : b))
+
+  const loadMatchingVorlagen = async () => {
+    setLoadingVorlagen(true)
+    setMatchingVorlagen([])
+    try {
+      // Verknüpfte Transaktion ermitteln
+      const tx = selectedTxForKi ?? linkedTransactions[0]
+      if (!tx) { setLoadingVorlagen(false); return }
+
+      const txName = (tx.counterpart_name ?? '').toLowerCase().trim()
+      const txIban = (tx.counterpart_iban ?? '').toLowerCase().trim()
+      const txPurpose = (tx.purpose ?? '').toLowerCase().trim()
+
+      // Alle Buchungssätze mit ki_vorlage=true laden (inkl. verknüpfte Transaktionen)
+      const { data: vorlagenData } = await supabase
+        .from('buchungssaetze')
+        .select(`
+          id, nummer, datum, buchungstext, anmerkungen, ki_vorlage,
+          buchungen(datum, betrag, buchungstext, anmerkungen, sort_order, sollkonto:skr03!sollkonto_id(id, kontonummer, beschriftung), habenkonto:skr03!habenkonto_id(id, kontonummer, beschriftung)),
+          buchungssatz_transactions(transaction_id, transactions(id, counterpart_name, counterpart_iban, purpose))
+        `)
+        .eq('ki_vorlage', true)
+        .eq('is_active', true)
+        .neq('id', editingId ?? '')
+
+      const passend = (vorlagenData ?? []).filter((bs: any) => {
+        const txs: any[] = (bs.buchungssatz_transactions ?? []).map((bt: any) => bt.transactions).filter(Boolean)
+        if (txs.length === 0) return false
+        return txs.some((t: any) => {
+          const n = (t.counterpart_name ?? '').toLowerCase().trim()
+          const ib = (t.counterpart_iban ?? '').toLowerCase().trim()
+          const p = (t.purpose ?? '').toLowerCase().trim()
+          const nameMatch = txName && n && n === txName
+          const ibanMatch = txIban && ib && ib === txIban
+          const purposeMatch = txPurpose && p && p === txPurpose
+          return nameMatch || ibanMatch || purposeMatch
+        })
+      })
+
+      setMatchingVorlagen(passend)
+    } catch (err) {
+      console.error('Vorlagen laden Fehler:', err)
+    } finally {
+      setLoadingVorlagen(false)
+    }
+  }
+
+  const applyVorlage = (vorlage: any) => {
+    const buchungen = (vorlage.buchungen ?? []).sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    setBuchungenForm(buchungen.map((b: any) => ({
+      datum: bsForm.datum || b.datum || '',
+      betrag: b.betrag ?? '',
+      buchungstext: b.buchungstext ?? '',
+      anmerkungen: b.anmerkungen ?? '',
+      sollkonto_id: b.sollkonto?.id ?? '',
+      habenkonto_id: b.habenkonto?.id ?? '',
+    })))
+    setShowVorlagenDropdown(false)
+  }
 
   const loadBelegVorschlaege = async () => {
     setLoadingBelegVorschlaege(true)
@@ -780,14 +842,66 @@ export default function BuchungssaetzePage() {
                 </Select>
               </div>
             </div>
-            {/* KI-Vorlage Toggle im Formular */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setBsForm(f => ({ ...f, ki_vorlage: !f.ki_vorlage }))}
-                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${bsForm.ki_vorlage ? 'bg-blue-600' : 'bg-gray-200'}`}>
-                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${bsForm.ki_vorlage ? 'translate-x-4' : 'translate-x-0.5'}`} />
-              </button>
-              <span className="text-xs text-gray-500">Als KI-Vorlage verwenden</span>
+            {/* Vorlage Toggle + Aus Vorlage laden */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setBsForm(f => ({ ...f, ki_vorlage: !f.ki_vorlage }))}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${bsForm.ki_vorlage ? 'bg-blue-600' : 'bg-gray-200'}`}>
+                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${bsForm.ki_vorlage ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                </button>
+                <span className="text-xs text-gray-500">Als Vorlage verwenden</span>
+              </div>
+              {/* Aus Vorlage laden */}
+              <div className="relative">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs h-7"
+                  onClick={() => {
+                    if (!showVorlagenDropdown) {
+                      setShowVorlagenDropdown(true)
+                      loadMatchingVorlagen()
+                    } else {
+                      setShowVorlagenDropdown(false)
+                    }
+                  }}>
+                  <ChevronDown className="h-3.5 w-3.5" />
+                  Aus Vorlage laden
+                </Button>
+                {showVorlagenDropdown && (
+                  <div className="absolute left-0 top-full mt-1 z-50 w-80 bg-white border border-gray-200 rounded-md shadow-lg">
+                    <div className="p-2 border-b border-gray-100 flex items-center justify-between">
+                      <span className="text-xs font-medium text-gray-700">Passende Vorlagen</span>
+                      <button onClick={() => setShowVorlagenDropdown(false)} className="text-gray-400 hover:text-gray-600">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    {loadingVorlagen ? (
+                      <div className="flex items-center justify-center py-4 gap-2 text-xs text-gray-500">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Lade Vorlagen…
+                      </div>
+                    ) : matchingVorlagen.length === 0 ? (
+                      <div className="py-4 text-center text-xs text-gray-400">Keine passenden Vorlagen gefunden</div>
+                    ) : (
+                      <div className="max-h-64 overflow-y-auto">
+                        {matchingVorlagen.map((v: any) => (
+                          <button
+                            key={v.id}
+                            type="button"
+                            className="w-full text-left px-3 py-2.5 hover:bg-blue-50 border-b border-gray-50 last:border-0"
+                            onClick={() => applyVorlage(v)}>
+                            <div className="text-xs font-medium text-gray-800 truncate">{v.buchungstext || `Vorlage ${v.nummer}`}</div>
+                            <div className="text-xs text-gray-400 mt-0.5">{v.datum} · {(v.buchungen ?? []).length} Buchungszeile{(v.buchungen ?? []).length !== 1 ? 'n' : ''}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Anmerkungen */}
@@ -1843,7 +1957,7 @@ export default function BuchungssaetzePage() {
                         </div>
                         {/* KI-Vorlage Toggle */}
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-500">Als KI-Vorlage verwenden</span>
+                          <span className="text-xs text-gray-500">Als Vorlage verwenden</span>
                           <button
                             onClick={() => toggleKiVorlage.mutate({ id: bs.id, ki_vorlage: !bs.ki_vorlage })}
                             className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${bs.ki_vorlage !== false ? 'bg-blue-600' : 'bg-gray-200'}`}
