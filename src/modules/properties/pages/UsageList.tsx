@@ -173,19 +173,23 @@ export default function UsageList() {
                   {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-gray-900">
-                        {getContactName(usage)}
-                      </span>
-                      {(usage as any).group_usage && (
+                      {(usage as any).group_usage ? (
                         <>
+                          <span className="font-semibold text-gray-900">
+                            {(usage as any).group_usage.name}
+                          </span>
                           <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
                             <UsersRound className="h-3 w-3" />
                             Gastro-Event
                           </span>
-                          <span className="text-xs text-indigo-600 font-medium">
-                            {(usage as any).group_usage.name}
+                          <span className="text-xs text-gray-500">
+                            {getContactName(usage)}
                           </span>
                         </>
+                      ) : (
+                        <span className="font-semibold text-gray-900">
+                          {getContactName(usage)}
+                        </span>
                       )}
                       {usage.unit && (
                         <>
