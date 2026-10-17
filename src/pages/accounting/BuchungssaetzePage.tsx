@@ -493,11 +493,12 @@ export default function BuchungssaetzePage() {
       const txIban = (tx.counterpart_iban ?? '').toLowerCase().trim()
       const txPurpose = (tx.purpose ?? '').toLowerCase().trim()
 
-      // Alle Buchungssätze mit ki_vorlage=true laden (inkl. verknüpfte Transaktionen)
+      // Alle Buchungssätze mit ki_vorlage=true laden (inkl. verknüpfte Transaktionen + Beleg)
       const { data: vorlagenData } = await supabase
         .from('buchungssaetze')
         .select(`
           id, nummer, datum, buchungstext, anmerkungen, ki_vorlage,
+          beleg_sharepoint_url, beleg_sharepoint_path, beleg_storage_path,
           buchungen(datum, betrag, buchungstext, anmerkungen, sort_order, sollkonto:skr03!sollkonto_id(id, kontonummer, beschriftung), habenkonto:skr03!habenkonto_id(id, kontonummer, beschriftung)),
           buchungssatz_transactions(transaction_id, transactions(id, counterpart_name, counterpart_iban, purpose))
         `)
@@ -527,7 +528,8 @@ export default function BuchungssaetzePage() {
     }
   }
 
-  const applyVorlage = (vorlage: any) => {
+  const applyVorlage = async (vorlage: any) => {
+    // Buchungszeilen übernehmen
     const buchungen = (vorlage.buchungen ?? []).sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
     setBuchungenForm(buchungen.map((b: any) => ({
       datum: bsForm.datum || b.datum || '',
@@ -537,6 +539,60 @@ export default function BuchungssaetzePage() {
       sollkonto_id: b.sollkonto?.id ?? '',
       habenkonto_id: b.habenkonto?.id ?? '',
     })))
+
+    // Beleg übernehmen
+    const spPath = vorlage.beleg_sharepoint_path ?? ''
+    const spUrl = vorlage.beleg_sharepoint_url ?? ''
+    const storagePath = vorlage.beleg_storage_path ?? ''
+
+    if (spPath) {
+      // SharePoint-Link übernehmen
+      setBsForm(f => ({ ...f, beleg_sharepoint_path: spPath, beleg_sharepoint_url: spUrl }))
+      setBelegMode('sharepoint')
+      // Vorschau laden
+      setSpPreviewLoading(true)
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/graph-service`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+          body: JSON.stringify({ action: 'readFile', payload: { path: spPath } }),
+        })
+        const data = await res.json()
+        if (data.success) {
+          const ext = spPath.split('.').pop()?.toLowerCase()
+          const mime = ext === 'pdf' ? 'application/pdf'
+            : ['jpg','jpeg'].includes(ext ?? '') ? 'image/jpeg'
+            : ext === 'png' ? 'image/png' : 'application/octet-stream'
+          const blob = new Blob([Uint8Array.from(atob(data.data), c => c.charCodeAt(0))], { type: mime })
+          setBelegPreviewUrl(URL.createObjectURL(blob))
+          setBelegPreviewMime(mime)
+        }
+      } finally { setSpPreviewLoading(false) }
+    } else if (storagePath) {
+      // Hochgeladenen Beleg kopieren (in neuen Pfad unter temporärer ID)
+      setBelegMode('upload')
+      try {
+        const ext = storagePath.split('.').pop()
+        const tmpId = editingId && editingId !== 'new' ? editingId : `tmp_${Date.now()}`
+        const newPath = `${tmpId}/${Date.now()}.${ext}`
+        const { error: copyErr } = await supabase.storage.from('belege').copy(storagePath, newPath)
+        if (!copyErr) {
+          setBsForm(f => ({ ...f, beleg_storage_path: newPath } as any))
+          setReferenzStoragePath(newPath)
+          const url = await getBelegUrl(newPath)
+          setBelegPreviewUrl(url)
+          setBelegPreviewMime(ext === 'pdf' ? 'application/pdf' : 'image/jpeg')
+        } else {
+          // Kopie fehlgeschlagen: trotzdem URL der Vorlage anzeigen
+          const url = await getBelegUrl(storagePath)
+          setBelegPreviewUrl(url)
+          setBelegPreviewMime(ext === 'pdf' ? 'application/pdf' : 'image/jpeg')
+          setReferenzStoragePath(storagePath)
+        }
+      } catch {}
+    }
+
     setShowVorlagenDropdown(false)
   }
 
