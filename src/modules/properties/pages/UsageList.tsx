@@ -228,11 +228,22 @@ export default function UsageList() {
 
                   {/* Aktionen */}
                   <div className="flex items-center gap-1 flex-shrink-0">
+                    {(usage as any).group_usage && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => navigate(`/properties/group-usages/${(usage as any).group_usage.id}/edit`)}
+                        title="Gastro-Event bearbeiten"
+                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => navigate(`/properties/usages/${usage.id}/edit`)}
-                      title="Bearbeiten"
+                      title="Einzelnutzung bearbeiten"
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
