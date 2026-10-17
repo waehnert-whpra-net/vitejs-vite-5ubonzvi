@@ -879,6 +879,10 @@ export default function BuchungssaetzePage() {
                     Zurück zur Geldkontobewegung
                   </Button>
                 )}
+                <Button size="sm" onClick={handleSave} disabled={saving || deleting} className="gap-1.5">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  {saving ? 'Speichert...' : 'Buchungssatz speichern'}
+                </Button>
                 <Button variant="ghost" size="sm" onClick={cancel} className="gap-1.5 text-gray-500 hover:text-gray-700">
                   <X className="h-4 w-4" />Schließen
                 </Button>
@@ -1788,60 +1792,51 @@ export default function BuchungssaetzePage() {
 
             {error && <p className="text-sm text-red-600">{error}</p>}
 
-            <div className="flex items-center gap-2 flex-wrap">
-              <Button onClick={handleSave} disabled={saving || deleting} className="gap-2">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                {saving ? 'Speichert...' : 'Buchungssatz speichern'}
-              </Button>
-              <Button variant="outline" onClick={cancel} disabled={saving || deleting} className="gap-2">
-                <X className="h-4 w-4" />Abbrechen
-              </Button>
-
-              {/* Löschen — nur für Admins, nur bei bestehendem BS */}
-              {isAdmin && editingId !== 'new' && (
-                <div className="flex items-center gap-2 ml-auto">
-                  {!confirmDelete ? (
+            {/* Löschen — nur für Admins, nur bei bestehendem BS */}
+            {isAdmin && editingId !== 'new' && (
+              <div className="flex items-center gap-2">
+                {!confirmDelete ? (
+                  <Button
+                    variant="ghost"
+                    onClick={() => setConfirmDelete(true)}
+                    disabled={saving || deleting}
+                    className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Buchungssatz löschen
+                  </Button>
+                ) : (
+                  <>
+                    <span className="text-sm text-red-600 font-medium">Wirklich löschen?</span>
                     <Button
-                      variant="ghost"
-                      onClick={() => setConfirmDelete(true)}
-                      disabled={saving || deleting}
-                      className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                      variant="destructive"
+                      size="sm"
+                      disabled={deleting}
+                      onClick={async () => {
+                        setDeleting(true)
+                        try {
+                          await del.mutateAsync(editingId as string)
+                          cancel()
+                        } catch (err: any) {
+                          setError(err.message ?? 'Fehler beim Löschen')
+                          setConfirmDelete(false)
+                        } finally {
+                          setDeleting(false)
+                        }
+                      }}
+                      className="gap-1.5"
                     >
-                      <Trash2 className="h-4 w-4" />
-                      Buchungssatz löschen
+                      {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                      Ja, löschen
                     </Button>
-                  ) : (
-                    <>
-                      <span className="text-sm text-red-600 font-medium">Wirklich löschen?</span>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        disabled={deleting}
-                        onClick={async () => {
-                          setDeleting(true)
-                          try {
-                            await del.mutateAsync(editingId as string)
-                            cancel()
-                          } catch (err: any) {
-                            setError(err.message ?? 'Fehler beim Löschen')
-                            setConfirmDelete(false)
-                          } finally {
-                            setDeleting(false)
-                          }
-                        }}
-                        className="gap-1.5"
-                      >
-                        {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                        Ja, löschen
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => setConfirmDelete(false)} disabled={deleting}>
-                        Abbrechen
-                      </Button>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
+                    <Button variant="outline" size="sm" onClick={() => setConfirmDelete(false)} disabled={deleting}>
+                      Abbrechen
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
+
           </CardContent>
         </Card>
       )}
