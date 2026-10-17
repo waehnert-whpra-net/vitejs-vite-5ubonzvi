@@ -94,28 +94,35 @@ export default function Dashboard() {
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
 
-      {/* ── Zeile 1: Rolle ────────────────────────────────────────────────── */}
-      {!isLoading && (
-        <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold ${roleColor}`}>
-          <RoleIcon className="h-4 w-4" />
-          Du bist als <span className="font-bold">{roleName}</span> eingeloggt
-        </div>
-      )}
+      {/* ── Überschrift + Rolle ───────────────────────────────────────────── */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
 
-      {/* ── Zeile 2: Login-Info ───────────────────────────────────────────── */}
-      {user && (
-        <div className="text-gray-600 text-sm space-y-0.5">
-          <p>
-            <span className="font-medium text-gray-800">{providerLabel}:</span>{' '}
-            <span className="font-mono text-gray-700">{user.email}</span>
-          </p>
-          {fullName && (
-            <p className="text-lg font-semibold text-gray-900">
-              Herzlich Willkommen, {fullName}!
-            </p>
+          {/* Login-Info */}
+          {user && (
+            <div className="text-gray-600 text-sm space-y-0.5 mt-1">
+              <p>
+                <span className="font-medium text-gray-800">{providerLabel}:</span>{' '}
+                <span className="font-mono text-gray-700">{user.email}</span>
+              </p>
+              {fullName && (
+                <p className="text-lg font-semibold text-gray-900">
+                  Herzlich Willkommen, {fullName}!
+                </p>
+              )}
+            </div>
           )}
         </div>
-      )}
+
+        {/* Rollen-Badge rechts oben */}
+        {!isLoading && (
+          <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold whitespace-nowrap ${roleColor}`}>
+            <RoleIcon className="h-4 w-4" />
+            Du bist als <span className="font-bold">{roleName}</span> eingeloggt
+          </div>
+        )}
+      </div>
 
       {/* ── Hinweis für neue Nutzer ohne Rolle ───────────────────────────── */}
       {!isLoading && hasRole === false && (
