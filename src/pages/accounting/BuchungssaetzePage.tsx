@@ -367,6 +367,7 @@ export default function BuchungssaetzePage() {
       } finally { setSpPreviewLoading(false) }
     } else if (storagePath) {
       setBelegMode('upload')
+      setReferenzStoragePath(storagePath)
       // Storage-Vorschau laden
       try {
         const url = await getBelegUrl(storagePath)
