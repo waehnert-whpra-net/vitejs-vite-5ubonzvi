@@ -94,26 +94,18 @@ export function useUpdateUser() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (payload: UpdateUserPayload) => {
-      // Update profile fields (id = user_id in user_profiles)
-      const { error: profileError } = await supabase
-        .from('user_profiles')
-        .update({
-          first_name: payload.firstName,
-          last_name: payload.lastName,
-          display_name: payload.displayName,
-          is_active: payload.isActive,
-          expires_at: payload.expiresAt || null,
-          notify_new_users: payload.notifyNewUsers,
-        })
-        .eq('id', payload.userId)
-      if (profileError) throw profileError
-
-      // Update role
-      const { error: roleError } = await supabase.rpc('set_user_role', {
+      // Update profile + role via RPC (umgeht RLS für SuperAdmin)
+      const { error: updateError } = await supabase.rpc('update_user_profile_and_role', {
         p_user_id: payload.userId,
-        p_role_id: payload.roleId,
+        p_first_name: payload.firstName,
+        p_last_name: payload.lastName,
+        p_display_name: payload.displayName,
+        p_is_active: payload.isActive,
+        p_expires_at: payload.expiresAt ?? null,
+        p_notify_new_users: payload.notifyNewUsers,
+        p_role_id: payload.roleId ?? null,
       })
-      if (roleError) throw roleError
+      if (updateError) throw updateError
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['all_users_with_roles'] })
