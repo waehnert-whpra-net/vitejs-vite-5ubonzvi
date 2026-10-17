@@ -802,6 +802,8 @@ export default function BuchungssaetzePage() {
         setBsForm(f => ({ ...f, id: savedId }))
         setEditingId(savedId)
       }
+      // Storage-Pfad im State halten damit Beleg-Prüfung nach dem Speichern korrekt ist
+      if (storagePath) setReferenzStoragePath(storagePath)
       setError(null)
       // Vollständigkeitsprüfung nach dem Speichern — nur wenn Transaktion verknüpft
       if (linkedTxIds.length > 0) {
@@ -823,7 +825,7 @@ export default function BuchungssaetzePage() {
           )
           if (buchungUnvollständig) hinweise.push('Eine oder mehrere Buchungszeilen haben fehlende Pflichtfelder (Datum, Betrag, Soll-/Habenkonto, Buchungstext)')
         }
-        const hasBeleg = bsForm.beleg_sharepoint_url || bsForm.beleg_sharepoint_path || referenzStoragePath || belegFile
+        const hasBeleg = bsForm.beleg_sharepoint_url || bsForm.beleg_sharepoint_path || storagePath || referenzStoragePath || belegFile
         if (!hasBeleg) hinweise.push('Kein Beleg verknüpft')
         if (!bsForm.belegtyp) hinweise.push('Belegtyp fehlt')
         if (!bsForm.belegnummer) hinweise.push('Belegnummer fehlt')
