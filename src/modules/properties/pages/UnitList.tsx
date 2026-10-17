@@ -134,8 +134,8 @@ export default function UnitList() {
                       {unit.max_persons != null && (
                         <span className="flex items-center gap-1">
                           <Users className="h-3 w-3" />
-                          {(unit as any).max_extra_beds > 0
-                            ? `${unit.max_persons - (unit as any).max_extra_beds} Betten +${(unit as any).max_extra_beds} Aufbettung`
+                          {(unit as any).max_extra_beds > unit.max_persons
+                            ? `${unit.max_persons} Betten +${(unit as any).max_extra_beds - unit.max_persons} Aufbettung`
                             : `${unit.max_persons} Betten`
                           }
                         </span>

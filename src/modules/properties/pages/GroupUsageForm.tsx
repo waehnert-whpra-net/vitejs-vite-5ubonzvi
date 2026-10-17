@@ -96,13 +96,13 @@ export default function GroupUsageForm() {
       const cur = next.get(unitId)
       if (!cur) return next
 
-      const maxTotal = (unit.max_persons ?? 0) + (unit.max_extra_beds ?? 0)
-      const maxExtra = unit.max_extra_beds ?? 0
+      const maxTotal = unit.max_extra_beds ?? unit.max_persons ?? 0
+      const maxExtra = (unit.max_extra_beds ?? 0) - (unit.max_persons ?? 0)
 
       const updated = { ...cur, [field]: Math.max(0, value) }
 
-      // Aufbettungen dürfen max_extra_beds nicht überschreiten
-      updated.extraBeds = Math.min(updated.extraBeds, maxExtra)
+      // Aufbettungen dürfen die Differenz (max_extra_beds - max_persons) nicht überschreiten
+      updated.extraBeds = Math.min(updated.extraBeds, Math.max(0, maxExtra))
 
       // Summe aller drei darf maxTotal nicht überschreiten
       const total = updated.adults + updated.children + updated.extraBeds
@@ -369,8 +369,8 @@ export default function GroupUsageForm() {
                     const persons = unitPersons.get(unit.id)
                     const selected = !!persons
                     const available = unit.is_available
-                    const maxTotal = (unit.max_persons ?? 0) + (unit.max_extra_beds ?? 0)
-                    const maxExtra = unit.max_extra_beds ?? 0
+                    const maxTotal = unit.max_extra_beds ?? unit.max_persons ?? 0
+                    const maxExtra = Math.max(0, (unit.max_extra_beds ?? 0) - (unit.max_persons ?? 0))
 
                     return (
                       <div
@@ -409,8 +409,8 @@ export default function GroupUsageForm() {
                                 <span className="flex items-center gap-1 text-xs text-gray-500" title="Betten / max. Aufbettung">
                                   <Bed className="h-3 w-3" />
                                   {unit.max_persons}
-                                  {unit.max_extra_beds
-                                    ? <span className="text-gray-400">+{unit.max_extra_beds}</span>
+                                  {unit.max_extra_beds > unit.max_persons
+                                    ? <span className="text-gray-400">+{unit.max_extra_beds - unit.max_persons}</span>
                                     : null}
                                 </span>
                               )}
@@ -438,8 +438,8 @@ export default function GroupUsageForm() {
                           >
                             {/* Hinweis max. Personen */}
                             <p className="text-xs text-gray-400">
-                              Max. {unit.max_persons ?? 0} Betten
-                              {maxExtra > 0 ? ` + ${maxExtra} Aufbettungen` : ''}
+                              {unit.max_persons ?? 0} Betten
+                              {maxExtra > 0 ? ` + ${maxExtra} Aufbettungen möglich` : ''}
                               {' '}— Summe: {persons.adults + persons.children + persons.extraBeds} / {maxTotal}
                             </p>
 
