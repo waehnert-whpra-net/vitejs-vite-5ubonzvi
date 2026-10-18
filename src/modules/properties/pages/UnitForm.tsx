@@ -180,7 +180,8 @@ export default function UnitForm() {
         cleaning_status: form.cleaning_status || null,
         cleaning_cycle: form.cleaning_cycle || null,
         cleaning_notes: form.cleaning_notes || null,
-        rent_target: num(form.rent_target),
+        // Bei monatlicher Miete: rent_target = Gesamtmiete (rent_total), sonst manueller Wert
+        rent_target: isMonthly ? num(form.rent_total) : num(form.rent_target),
         daily_rate_per_person: num(form.daily_rate_per_person),
         rent_calculated_weekly: num(calcWeeklyRent()),
         rent_total: num(form.rent_total),
