@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { usePropertyUnit, usePropertyAreas, useSavePropertyUnit } from '@/modules/properties/hooks/useProperties'
+import { usePropertyUnit, usePropertyAreas, useSavePropertyUnit, useDeletePropertyUnit } from '@/modules/properties/hooks/useProperties'
+import { useIsAdmin } from '@/hooks/usePermissions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ArrowLeft, Save, Upload, X } from 'lucide-react'
+import { ArrowLeft, Save, Upload, X, Trash2 } from 'lucide-react'
 import FolderPicker from '@/components/FolderPicker'
 
 const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Nacht']
@@ -20,9 +21,13 @@ export default function UnitForm() {
   const { data: existing } = usePropertyUnit(id ?? '')
   const { data: areas } = usePropertyAreas()
   const saveUnit = useSavePropertyUnit()
+  const deleteUnit = useDeletePropertyUnit()
+  const isAdmin = useIsAdmin()
   const floorPlanInputRef = useRef<HTMLInputElement>(null)
 
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [floorPlanPreview, setFloorPlanPreview] = useState<string | null>(null)
   const [showFolderPicker, setShowFolderPicker] = useState(false)
@@ -210,6 +215,20 @@ export default function UnitForm() {
       setError(err.message ?? 'Fehler beim Speichern')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!id) return
+    try {
+      setDeleting(true)
+      await deleteUnit.mutateAsync(id)
+      navigate('/properties/units')
+    } catch (err: any) {
+      setError(err.message ?? 'Fehler beim Löschen')
+      setConfirmDelete(false)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -610,15 +629,49 @@ export default function UnitForm() {
           </CardContent>
         </Card>
 
-        {/* Speichern */}
-        <div className="flex justify-end gap-3 pb-6">
-          <Button variant="outline" onClick={() => navigate('/properties/units')}>
-            Abbrechen
-          </Button>
-          <Button onClick={handleSave} disabled={saving} className="gap-2">
-            <Save className="h-4 w-4" />
-            {saving ? 'Wird gespeichert...' : 'Einheit speichern'}
-          </Button>
+        {/* Speichern / Löschen */}
+        <div className="flex justify-between items-center pb-6">
+          {/* Löschen – nur Admin, nur bei bestehender Einheit */}
+          <div>
+            {isAdmin && isEdit && !confirmDelete && (
+              <Button
+                variant="outline"
+                className="gap-2 text-destructive border-destructive hover:bg-destructive hover:text-white"
+                onClick={() => setConfirmDelete(true)}
+              >
+                <Trash2 className="h-4 w-4" />
+                Einheit löschen
+              </Button>
+            )}
+            {isAdmin && isEdit && confirmDelete && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-destructive font-medium">Wirklich löschen?</span>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="gap-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  {deleting ? 'Wird gelöscht...' : 'Ja, löschen'}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setConfirmDelete(false)}>
+                  Abbrechen
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={() => navigate('/properties/units')}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleSave} disabled={saving} className="gap-2">
+              <Save className="h-4 w-4" />
+              {saving ? 'Wird gespeichert...' : 'Einheit speichern'}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
