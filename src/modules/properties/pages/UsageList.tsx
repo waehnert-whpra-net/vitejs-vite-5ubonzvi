@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePropertyUsages, useDeletePropertyUsage } from '@/modules/properties/hooks/useProperties'
 import { Button } from '@/components/ui/button'
@@ -8,9 +8,13 @@ import { Plus, Pencil, Trash2, Search, CalendarDays, Users, Infinity, UsersRound
 
 export default function UsageList() {
   const navigate = useNavigate()
-  const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState<'all' | 'current' | 'future'>('all')
-  const [hideUnlimited, setHideUnlimited] = useState(false)
+  const [search, setSearch] = useState(() => sessionStorage.getItem('usageList_search') ?? '')
+  const [filter, setFilter] = useState<'all' | 'current' | 'future'>(() => (sessionStorage.getItem('usageList_filter') as 'all' | 'current' | 'future') ?? 'all')
+  const [hideUnlimited, setHideUnlimited] = useState(() => sessionStorage.getItem('usageList_hideUnlimited') === 'true')
+
+  useEffect(() => { sessionStorage.setItem('usageList_search', search) }, [search])
+  useEffect(() => { sessionStorage.setItem('usageList_filter', filter) }, [filter])
+  useEffect(() => { sessionStorage.setItem('usageList_hideUnlimited', String(hideUnlimited)) }, [hideUnlimited])
   const { data: usages, isLoading } = usePropertyUsages()
   const deleteUsage = useDeletePropertyUsage()
 
