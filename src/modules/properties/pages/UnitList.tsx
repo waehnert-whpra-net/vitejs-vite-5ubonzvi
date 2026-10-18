@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePropertyUnits, usePropertyAreas, useDeletePropertyUnit } from '@/modules/properties/hooks/useProperties'
 import { Button } from '@/components/ui/button'
@@ -11,8 +11,11 @@ import type { PropertyUnit } from '@/modules/properties/hooks/useProperties'
 
 export default function UnitList() {
   const navigate = useNavigate()
-  const [search, setSearch] = useState('')
-  const [areaFilter, setAreaFilter] = useState<string>('all')
+  const [search, setSearch] = useState(() => sessionStorage.getItem('unitList_search') ?? '')
+  const [areaFilter, setAreaFilter] = useState<string>(() => sessionStorage.getItem('unitList_areaFilter') ?? 'all')
+
+  useEffect(() => { sessionStorage.setItem('unitList_search', search) }, [search])
+  useEffect(() => { sessionStorage.setItem('unitList_areaFilter', areaFilter) }, [areaFilter])
   const [createDocUnit, setCreateDocUnit] = useState<PropertyUnit | null>(null)
   const { data: units, isLoading } = usePropertyUnits()
   const { data: areas } = usePropertyAreas()
