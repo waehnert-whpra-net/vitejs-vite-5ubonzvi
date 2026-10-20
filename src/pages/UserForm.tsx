@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useAllUsers, useAllRoles, useUpdateUser, useInviteUser } from '@/hooks/useUsers'
+import { useAllUsers, useAllRoles, useUpdateUser, useInviteUser, useSendPasswordReset } from '@/hooks/useUsers'
 import { useIsSuperAdmin } from '@/hooks/usePermissions'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ArrowLeft, Save, UserPlus, Loader2, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Save, UserPlus, Loader2, AlertCircle, KeyRound, CheckCircle2 } from 'lucide-react'
 
 const NO_ROLE = '__none__'
 
@@ -22,6 +22,7 @@ export default function UserForm() {
   const { data: roles } = useAllRoles()
   const updateUser = useUpdateUser()
   const inviteUser = useInviteUser()
+  const sendPasswordReset = useSendPasswordReset()
 
   const existingUser = allUsers?.find(u => u.user_id === id) ?? null
 
@@ -37,6 +38,8 @@ export default function UserForm() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [formPopulated, setFormPopulated] = useState(false)
+  const [resetSent, setResetSent] = useState(false)
+  const [resetError, setResetError] = useState<string | null>(null)
 
   // Populate form fields from allUsers (name, active, etc.)
   useEffect(() => {
@@ -274,6 +277,54 @@ export default function UserForm() {
             )}
           </CardContent>
         </Card>
+
+        {/* Passwort zurücksetzen – nur bei bestehendem Nutzer */}
+        {!isNew && existingUser?.email && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Passwort zurücksetzen</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-gray-500">
+                Sendet eine E-Mail an <span className="font-medium text-gray-700">{existingUser.email}</span> mit einem Link zum Setzen eines neuen Passworts.
+              </p>
+              {resetSent ? (
+                <div className="flex items-center gap-2 text-green-700 text-sm font-medium">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Reset-Mail wurde versendet.
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2"
+                  disabled={sendPasswordReset.isPending}
+                  onClick={async () => {
+                    setResetError(null)
+                    try {
+                      await sendPasswordReset.mutateAsync(existingUser.email!)
+                      setResetSent(true)
+                    } catch (err: any) {
+                      setResetError(err.message ?? 'Fehler beim Versenden')
+                    }
+                  }}
+                >
+                  {sendPasswordReset.isPending
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : <KeyRound className="h-4 w-4" />
+                  }
+                  Passwort-Reset-Mail senden
+                </Button>
+              )}
+              {resetError && (
+                <p className="text-sm text-red-600 flex items-center gap-1">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                  {resetError}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Fehler / Erfolg */}
         {error && (
