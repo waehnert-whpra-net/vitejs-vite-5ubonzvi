@@ -1,11 +1,12 @@
 import { useNavigate } from 'react-router-dom'
-import { useAllUsers, useAllRoles, useSetNotifyNewUsers, useSetUserRole } from '@/hooks/useUsers'
+import { useState } from 'react'
+import { useAllUsers, useAllRoles, useSetNotifyNewUsers, useSetUserRole, useDeleteUser } from '@/hooks/useUsers'
 import { useIsSuperAdmin } from '@/hooks/usePermissions'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Users, Mail, ShieldCheck, Clock, Bell, Plus, Pencil } from 'lucide-react'
+import { Users, Mail, ShieldCheck, Clock, Bell, Plus, Pencil, Trash2, Loader2 } from 'lucide-react'
 
 const ROLE_COLORS: Record<string, string> = {
   'Super-Admin': '#991b1b',
@@ -20,11 +21,13 @@ const NO_ROLE = '__none__'
 
 export default function UserList() {
   const navigate = useNavigate()
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const { data: users, isLoading, error } = useAllUsers()
   const { data: roles } = useAllRoles()
   const { data: isSuperAdmin } = useIsSuperAdmin()
   const setNotify = useSetNotifyNewUsers()
   const setRole = useSetUserRole()
+  const deleteUser = useDeleteUser()
 
   const formatDate = (date: string | null) =>
     date ? new Date(date).toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' }) : '–'
@@ -168,6 +171,44 @@ export default function UserList() {
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
+                        {confirmDeleteId === u.user_id ? (
+                          <>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="gap-1 text-xs h-8"
+                              disabled={deleteUser.isPending}
+                              onClick={async () => {
+                                await deleteUser.mutateAsync(u.user_id)
+                                setConfirmDeleteId(null)
+                              }}
+                            >
+                              {deleteUser.isPending
+                                ? <Loader2 className="h-3 w-3 animate-spin" />
+                                : <Trash2 className="h-3 w-3" />
+                              }
+                              Ja, löschen
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-xs h-8"
+                              onClick={() => setConfirmDeleteId(null)}
+                            >
+                              Abbrechen
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setConfirmDeleteId(u.user_id)}
+                            title="Nutzer löschen"
+                            className="text-destructive hover:text-destructive hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
 
                       <label

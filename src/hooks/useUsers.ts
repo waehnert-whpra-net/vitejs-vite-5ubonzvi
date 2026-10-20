@@ -116,6 +116,22 @@ export function useUpdateUser() {
   })
 }
 
+export function useDeleteUser() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (userId: string) => {
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { userId },
+      })
+      if (error) throw error
+      if (data?.error) throw new Error(data.error)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['all_users_with_roles'] })
+    }
+  })
+}
+
 export function useSendPasswordReset() {
   return useMutation({
     mutationFn: async (email: string) => {
