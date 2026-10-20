@@ -25,6 +25,7 @@ import ImportPatternsPage from '@/pages/accounting/ImportPatternsPage'
 import Skr03Page from '@/pages/accounting/Skr03Page'
 import BuchungssaetzePage from '@/pages/accounting/BuchungssaetzePage'
 import BuchungenPage from '@/pages/accounting/BuchungenPage'
+import ResetPassword from '@/pages/ResetPassword'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,6 +47,9 @@ function AppRoutes() {
       </div>
     )
   }
+
+  // Passwort-Reset-Seite ist ohne Login erreichbar
+  if (window.location.pathname === '/reset-password') return <ResetPassword />
 
   if (!user) return <Login />
 
