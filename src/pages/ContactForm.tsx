@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
-import { useContact, useContactTypes, useSalutations, useContactSearch } from '@/hooks/useContacts'
-import { useIsAdmin } from '@/hooks/usePermissions'
+import { useContact, useContactTypes, useSalutations, useContactSearch, useDeleteContact } from '@/hooks/useContacts'
+import { useIsAdmin, useIsSuperAdmin } from '@/hooks/usePermissions'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Save, Plus, Trash2, UserPlus, Search } from 'lucide-react'
+import { ArrowLeft, Save, Plus, Trash2, UserPlus, Search, Loader2 } from 'lucide-react'
 
 // Typen
 type Address = {
@@ -102,6 +102,7 @@ export default function ContactForm() {
   const { id } = useParams()
   const isEdit = !!id
   const isAdmin = useIsAdmin()
+  const { data: isSuperAdmin } = useIsSuperAdmin()
 
   // returnTo: Wenn aus UsageForm/GroupUsageForm aufgerufen → nach Speichern zurück
   const returnTo: string | undefined = location.state?.returnTo
@@ -110,9 +111,12 @@ export default function ContactForm() {
   const { data: existingContact } = useContact(id ?? '')
   const { data: contactTypes } = useContactTypes()
   const { data: salutations } = useSalutations()
+  const deleteContact = useDeleteContact()
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
   const [addresses, setAddresses] = useState<Address[]>([emptyAddress()])
   const [communications, setCommunications] = useState<Communication[]>([emptyCommunication()])
@@ -433,6 +437,20 @@ export default function ContactForm() {
       navigate(returnTo, { state: returnState })
     } else {
       navigate('/contacts')
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!id) return
+    try {
+      setDeleting(true)
+      await deleteContact.mutateAsync(id)
+      navigate('/contacts')
+    } catch (err: any) {
+      setError(err.message ?? 'Fehler beim Löschen')
+      setConfirmDelete(false)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -1117,14 +1135,57 @@ export default function ContactForm() {
         </Card>
 
         {/* ── Speichern ── */}
-        <div className="flex justify-end gap-3 pb-6">
-          <Button variant="outline" onClick={handleCancel}>
-            Abbrechen
-          </Button>
-          <Button onClick={handleSave} disabled={saving} className="gap-2">
-            <Save className="h-4 w-4" />
-            {saving ? 'Wird gespeichert...' : 'Kontakt speichern'}
-          </Button>
+        <div className="flex items-center justify-between pb-6">
+          {/* Links: Löschen (nur Admin/Super-Admin beim Bearbeiten) */}
+          <div>
+            {(isAdmin || isSuperAdmin) && isEdit && (
+              confirmDelete ? (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="gap-1"
+                    disabled={deleting}
+                    onClick={handleDelete}
+                  >
+                    {deleting
+                      ? <Loader2 className="h-4 w-4 animate-spin" />
+                      : <Trash2 className="h-4 w-4" />
+                    }
+                    Ja, löschen
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setConfirmDelete(false)}
+                  >
+                    Abbrechen
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2 text-destructive hover:text-destructive hover:bg-red-50"
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Kontakt löschen
+                </Button>
+              )
+            )}
+          </div>
+
+          {/* Rechts: Abbrechen + Speichern */}
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={handleCancel}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleSave} disabled={saving} className="gap-2">
+              <Save className="h-4 w-4" />
+              {saving ? 'Wird gespeichert...' : 'Kontakt speichern'}
+            </Button>
+          </div>
         </div>
 
       </div>

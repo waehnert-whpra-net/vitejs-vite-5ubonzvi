@@ -382,11 +382,22 @@ export function useDeleteGroupUsage() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (id: string) => {
+      // Zuerst alle zugehörigen Einzelnutzungen deaktivieren
+      const { error: usagesError } = await supabase
+        .from('property_usages')
+        .update({ is_active: false })
+        .eq('group_usage_id', id)
+      if (usagesError) throw usagesError
+
+      // Dann das Gastro-Event selbst deaktivieren
       const { error } = await supabase
         .from('group_usages').update({ is_active: false }).eq('id', id)
       if (error) throw error
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['group_usages'] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['group_usages'] })
+      queryClient.invalidateQueries({ queryKey: ['property_usages'] })
+    }
   })
 }
 
