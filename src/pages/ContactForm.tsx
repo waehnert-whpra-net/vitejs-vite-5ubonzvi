@@ -641,14 +641,14 @@ export default function ContactForm() {
                 <div>
                   <Label>Anrede</Label>
                   <Select
-                    value={form.salutation_id}
-                    onValueChange={v => set('salutation_id', v)}
+                    value={form.salutation_id || '__none__'}
+                    onValueChange={v => set('salutation_id', v === '__none__' ? '' : v)}
                   >
                     <SelectTrigger className="mt-1">
                       <SelectValue placeholder="Anrede" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">– keine –</SelectItem>
+                      <SelectItem value="__none__">– keine –</SelectItem>
                       {salutations?.map(s => (
                         <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                       ))}
@@ -788,14 +788,14 @@ export default function ContactForm() {
                     <div>
                       <Label className="text-xs">Anrede</Label>
                       <Select
-                        value={person.salutation_id}
-                        onValueChange={v => setContactPerson(i, 'salutation_id', v)}
+                        value={person.salutation_id || '__none__'}
+                        onValueChange={v => setContactPerson(i, 'salutation_id', v === '__none__' ? '' : v)}
                       >
                         <SelectTrigger className="mt-1 h-9">
                           <SelectValue placeholder="Anrede" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">– keine –</SelectItem>
+                          <SelectItem value="__none__">– keine –</SelectItem>
                           {salutations?.map(s => (
                             <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                           ))}
