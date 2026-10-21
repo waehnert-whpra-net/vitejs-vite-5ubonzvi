@@ -277,6 +277,12 @@ export default function ContactForm() {
     setPersonSearch('')
   }
 
+  const isValidUuid = (v: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)
+
+  const toUuidOrNull = (v: string | null | undefined): string | null =>
+    v && isValidUuid(v) ? v : null
+
   const handleSave = async () => {
     setSaving(true)
     setError(null)
@@ -287,7 +293,7 @@ export default function ContactForm() {
       const contactData = {
         is_company: form.is_company,
         visibility: form.visibility,
-        salutation_id: form.salutation_id || null,
+        salutation_id: toUuidOrNull(form.salutation_id),
         title: form.title || null,
         first_name: form.first_name || null,
         last_name: form.last_name || null,
@@ -396,7 +402,7 @@ export default function ContactForm() {
             .from('contacts')
             .insert({
               is_company: false,
-              salutation_id: person.salutation_id || null,
+              salutation_id: toUuidOrNull(person.salutation_id),
               title: person.title || null,
               first_name: person.first_name || null,
               last_name: person.last_name,
