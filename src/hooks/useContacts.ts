@@ -144,6 +144,13 @@ export function useContactTypes() {
   })
 }
 
+const FALLBACK_SALUTATIONS: Salutation[] = [
+  { id: 'herr', name: 'Herr', gender: 'm' },
+  { id: 'frau', name: 'Frau', gender: 'f' },
+  { id: 'divers', name: 'Divers', gender: 'd' },
+  { id: 'keine', name: 'Keine Angabe', gender: null },
+]
+
 export function useSalutations() {
   return useQuery({
     queryKey: ['salutations'],
@@ -153,6 +160,8 @@ export function useSalutations() {
         .select('*')
         .order('name')
       if (error) throw error
+      // Wenn Tabelle leer → Fallback-Werte verwenden
+      if (!data || data.length === 0) return FALLBACK_SALUTATIONS
       return data as Salutation[]
     }
   })

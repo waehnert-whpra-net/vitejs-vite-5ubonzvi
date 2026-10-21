@@ -648,6 +648,7 @@ export default function ContactForm() {
                       <SelectValue placeholder="Anrede" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="">– keine –</SelectItem>
                       {salutations?.map(s => (
                         <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                       ))}
@@ -794,6 +795,7 @@ export default function ContactForm() {
                           <SelectValue placeholder="Anrede" />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="">– keine –</SelectItem>
                           {salutations?.map(s => (
                             <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                           ))}
