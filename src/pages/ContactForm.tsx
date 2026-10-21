@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { useContact, useContactTypes, useSalutations, useContactSearch } from '@/hooks/useContacts'
 import { useIsAdmin } from '@/hooks/usePermissions'
 import { supabase } from '@/lib/supabase'
@@ -98,9 +98,14 @@ const emptyContactPerson = (): ContactPerson => ({
 
 export default function ContactForm() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { id } = useParams()
   const isEdit = !!id
   const isAdmin = useIsAdmin()
+
+  // returnTo: Wenn aus UsageForm/GroupUsageForm aufgerufen → nach Speichern zurück
+  const returnTo: string | undefined = location.state?.returnTo
+  const returnState: any = location.state?.returnState
 
   const { data: existingContact } = useContact(id ?? '')
   const { data: contactTypes } = useContactTypes()
@@ -411,7 +416,11 @@ export default function ContactForm() {
         })
       }
 
-      navigate('/contacts')
+      if (returnTo) {
+        navigate(returnTo, { state: { ...returnState, newContactId: contactId } })
+      } else {
+        navigate('/contacts')
+      }
     } catch (err: any) {
       setError(err.message ?? 'Fehler beim Speichern')
     } finally {
@@ -419,11 +428,19 @@ export default function ContactForm() {
     }
   }
 
+  const handleCancel = () => {
+    if (returnTo) {
+      navigate(returnTo, { state: returnState })
+    } else {
+      navigate('/contacts')
+    }
+  }
+
   return (
     <div className="p-6 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/contacts')}>
+        <Button variant="ghost" size="icon" onClick={handleCancel}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <h1 className="text-3xl font-bold text-gray-900">
@@ -1101,7 +1118,7 @@ export default function ContactForm() {
 
         {/* ── Speichern ── */}
         <div className="flex justify-end gap-3 pb-6">
-          <Button variant="outline" onClick={() => navigate('/contacts')}>
+          <Button variant="outline" onClick={handleCancel}>
             Abbrechen
           </Button>
           <Button onClick={handleSave} disabled={saving} className="gap-2">

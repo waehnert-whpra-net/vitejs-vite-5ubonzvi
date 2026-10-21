@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import {
   useGroupUsage, useSaveGroupUsage, useSavePropertyUsage, useDeletePropertyUsage,
   useDeleteGroupUsage, useAvailableUnits,
@@ -13,15 +13,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
   ArrowLeft, Save, CalendarDays, Building2,
-  Link, FolderOpen, Check, X, Bed, Users, Trash2, Loader2
+  Link, FolderOpen, Check, X, Bed, Users, Trash2, Loader2, UserPlus
 } from 'lucide-react'
 
 type UnitPersons = { adults: number; children: number; extraBeds: number }
 
 export default function GroupUsageForm() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { id } = useParams<{ id?: string }>()
   const isEdit = !!id && id !== 'new'
+
+  // Wiederherstellung nach Kontakt anlegen
+  const restoredForm: any = location.state?.savedForm
+  const restoredUnitPersons: [string, { adults: number; children: number; extraBeds: number }][] | undefined = location.state?.savedUnitPersons
+  const newContactId: string | undefined = location.state?.newContactId
 
   const { data: existing } = useGroupUsage(id ?? '')
   const { data: contactResult } = useContacts('', 0, 200)
@@ -49,17 +55,22 @@ export default function GroupUsageForm() {
     }
   }
 
-  const [form, setForm] = useState({
-    name: '',
-    contact_id: '',
-    date_from: '',
-    date_to: '',
-    notes: '',
-    sharepoint_url: '',
-  })
+  const [form, setForm] = useState(() => restoredForm
+    ? { ...restoredForm, contact_id: newContactId ?? restoredForm.contact_id }
+    : {
+        name: '',
+        contact_id: '',
+        date_from: '',
+        date_to: '',
+        notes: '',
+        sharepoint_url: '',
+      }
+  )
 
   // Ausgewählte Einheiten: Map unitId → { adults, children, extraBeds }
-  const [unitPersons, setUnitPersons] = useState<Map<string, UnitPersons>>(new Map())
+  const [unitPersons, setUnitPersons] = useState<Map<string, UnitPersons>>(() =>
+    restoredUnitPersons ? new Map(restoredUnitPersons) : new Map()
+  )
   const [saving, setSaving] = useState(false)
 
   const { data: availableUnits } = useAvailableUnits(
@@ -69,6 +80,8 @@ export default function GroupUsageForm() {
   )
 
   useEffect(() => {
+    // Nicht überschreiben wenn Formular gerade von Kontakt-Anlegen wiederhergestellt wird
+    if (restoredForm) return
     if (existing) {
       setForm({
         name: existing.name ?? '',
@@ -263,7 +276,27 @@ export default function GroupUsageForm() {
               </div>
 
               <div>
-                <Label>Kontakt / Hauptbuchender</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Kontakt / Hauptbuchender</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 h-7 text-xs"
+                    onClick={() => navigate('/contacts/new', {
+                      state: {
+                        returnTo: id && id !== 'new' ? `/properties/group-usages/${id}/edit` : '/properties/group-usages/new',
+                        returnState: {
+                          savedForm: form,
+                          savedUnitPersons: Array.from(unitPersons.entries()),
+                        },
+                      }
+                    })}
+                  >
+                    <UserPlus className="h-3.5 w-3.5" />
+                    Neuer Kontakt
+                  </Button>
+                </div>
                 <select
                   className="w-full mt-1 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
                   value={form.contact_id}

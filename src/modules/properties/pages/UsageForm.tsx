@@ -18,6 +18,9 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Ta
   const location = useLocation()
   const fromCalendar = location.state?.from === 'calendar'
   const calendarDate = location.state?.calendarDate
+  // Wiederherstellung nach Kontakt anlegen: gespeicherter Formularstand + neue contactId
+  const restoredForm: Record<string, any> | undefined = location.state?.savedForm
+  const newContactId: string | undefined = location.state?.newContactId
   const isEdit = !!id
   const { data: existing } = usePropertyUsage(id ?? '')
   const { data: unitsResult } = usePropertyUnits()
@@ -35,7 +38,29 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Ta
   const [unitSearch, setUnitSearch] = useState('')
   const [onlyAvailableUnits, setOnlyAvailableUnits] = useState(false)
 
-  const [form, setForm] = useState({
+  type FormState = {
+    unit_id: string
+    contact_id: string
+    is_unlimited: boolean
+    rental_period: string
+    date_from: string
+    date_to: string
+    rent_actual: string
+    handover_date: string
+    handover_time: string
+    handover_notes: string
+    return_date: string
+    return_time: string
+    return_notes: string
+    children_count: string
+    adults_count: string
+    is_active: boolean
+    notes: string
+    show_in_calendar: boolean
+    calendar_comment: string
+  }
+
+  const emptyForm: FormState = {
     unit_id: '',
     contact_id: '',
     is_unlimited: false,
@@ -55,7 +80,13 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Ta
     notes: '',
     show_in_calendar: true,
     calendar_comment: '',
-  })
+  }
+
+  const [form, setForm] = useState<FormState>(() =>
+    restoredForm
+      ? { ...emptyForm, ...restoredForm, contact_id: newContactId ?? restoredForm.contact_id }
+      : emptyForm
+  )
 
   useEffect(() => {
     if (!existing) return
@@ -340,8 +371,16 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Ta
                   variant="outline"
                   size="sm"
                   className="gap-2 h-7 text-xs"
-                  onClick={() => window.open('/contacts/new', '_blank')}
-                  title="Neuen Kontakt in neuem Tab anlegen"
+                  onClick={() => navigate('/contacts/new', {
+                    state: {
+                      returnTo: id ? `/properties/usages/${id}/edit` : '/properties/usages/new',
+                      returnState: {
+                        savedForm: form,
+                        ...(fromCalendar ? { from: 'calendar', calendarDate } : {}),
+                      },
+                    }
+                  })}
+                  title="Neuen Kontakt anlegen und zurückkehren"
                 >
                   <UserPlus className="h-3.5 w-3.5" />
                   Neuer Nutzer
