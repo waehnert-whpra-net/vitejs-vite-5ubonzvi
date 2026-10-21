@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   useGroupUsage, useSaveGroupUsage, useSavePropertyUsage, useDeletePropertyUsage,
-  useAvailableUnits,
+  useDeleteGroupUsage, useAvailableUnits,
 } from '@/modules/properties/hooks/useProperties'
 import { useContacts } from '@/hooks/useContacts'
+import { useIsAdmin, useIsSuperAdmin } from '@/hooks/usePermissions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
   ArrowLeft, Save, CalendarDays, Building2,
-  Link, FolderOpen, Check, X, Bed, Users
+  Link, FolderOpen, Check, X, Bed, Users, Trash2, Loader2
 } from 'lucide-react'
 
 type UnitPersons = { adults: number; children: number; extraBeds: number }
@@ -28,6 +29,25 @@ export default function GroupUsageForm() {
   const saveGroup = useSaveGroupUsage()
   const saveUsage = useSavePropertyUsage()
   const deleteUsage = useDeletePropertyUsage()
+  const deleteGroup = useDeleteGroupUsage()
+  const isAdmin = useIsAdmin()
+  const { data: isSuperAdmin } = useIsSuperAdmin()
+
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDelete = async () => {
+    if (!id) return
+    try {
+      setDeleting(true)
+      await deleteGroup.mutateAsync(id)
+      navigate('/properties/usages')
+    } catch (err: any) {
+      setConfirmDelete(false)
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const [form, setForm] = useState({
     name: '',
@@ -483,17 +503,60 @@ export default function GroupUsageForm() {
 
       {/* Footer */}
       <div className="flex items-center justify-between mt-6 pt-4 border-t">
-        <Button variant="outline" onClick={() => navigate('/properties/usages')}>
-          Abbrechen
-        </Button>
-        <Button
-          onClick={handleSave}
-          disabled={saving || !form.name || !dateRangeOk}
-          className="gap-2"
-        >
-          <Save className="h-4 w-4" />
-          {saving ? 'Wird gespeichert...' : `Event speichern (${selectedCount} Einheiten)`}
-        </Button>
+        {/* Links: Löschen (nur Admin/Super-Admin beim Bearbeiten) */}
+        <div>
+          {(isAdmin || isSuperAdmin) && isEdit && (
+            confirmDelete ? (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="gap-1"
+                  disabled={deleting}
+                  onClick={handleDelete}
+                >
+                  {deleting
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : <Trash2 className="h-4 w-4" />
+                  }
+                  Ja, löschen
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setConfirmDelete(false)}
+                >
+                  Abbrechen
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-2 text-destructive hover:text-destructive hover:bg-red-50"
+                onClick={() => setConfirmDelete(true)}
+              >
+                <Trash2 className="h-4 w-4" />
+                Event löschen
+              </Button>
+            )
+          )}
+        </div>
+
+        {/* Rechts: Abbrechen + Speichern */}
+        <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={() => navigate('/properties/usages')}>
+            Abbrechen
+          </Button>
+          <Button
+            onClick={handleSave}
+            disabled={saving || !form.name || !dateRangeOk}
+            className="gap-2"
+          >
+            <Save className="h-4 w-4" />
+            {saving ? 'Wird gespeichert...' : `Event speichern (${selectedCount} Einheiten)`}
+          </Button>
+        </div>
       </div>
     </div>
   )
