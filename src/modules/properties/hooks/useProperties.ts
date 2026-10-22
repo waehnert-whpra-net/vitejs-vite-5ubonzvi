@@ -401,6 +401,56 @@ export function useDeleteGroupUsage() {
   })
 }
 
+// ─── Datenbereinigung ────────────────────────────────────────────────────────
+
+/**
+ * Findet aktive property_usages, deren group_usage bereits deaktiviert wurde.
+ * Diese entstehen wenn ein Gastro-Event vor dem Fix vom 2024 gelöscht wurde
+ * ohne die verknüpften Nutzungen zu deaktivieren.
+ */
+export function useOrphanedUsages() {
+  return useQuery({
+    queryKey: ['orphaned_usages'],
+    queryFn: async () => {
+      // Alle aktiven property_usages mit group_usage_id laden
+      const { data: usages, error } = await supabase
+        .from('property_usages')
+        .select(`
+          id, unit_id, date_from, date_to, group_usage_id,
+          unit:property_units(id, name, short_code),
+          group_usage:group_usages!property_usages_group_usage_id_fkey(id, name, is_active)
+        `)
+        .eq('is_active', true)
+        .not('group_usage_id', 'is', null)
+      if (error) throw error
+
+      // Nur die filtern, deren group_usage inaktiv (gelöscht) ist
+      return ((usages ?? []) as any[]).filter(
+        u => u.group_usage && u.group_usage.is_active === false
+      )
+    }
+  })
+}
+
+export function useCleanupOrphanedUsages() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      if (ids.length === 0) return
+      const { error } = await supabase
+        .from('property_usages')
+        .update({ is_active: false })
+        .in('id', ids)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['property_usages'] })
+      queryClient.invalidateQueries({ queryKey: ['orphaned_usages'] })
+      queryClient.invalidateQueries({ queryKey: ['available_units'] })
+    }
+  })
+}
+
 // Verfügbare Einheiten für einen Zeitraum (für Gruppennutzung)
 export function useAvailableUnits(dateFrom: string | null, dateTo: string | null, excludeGroupId?: string) {
   return useQuery({

@@ -26,6 +26,7 @@ import Skr03Page from '@/pages/accounting/Skr03Page'
 import BuchungssaetzePage from '@/pages/accounting/BuchungssaetzePage'
 import BuchungenPage from '@/pages/accounting/BuchungenPage'
 import ResetPassword from '@/pages/ResetPassword'
+import DataCleanupPage from '@/pages/DataCleanupPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -100,6 +101,7 @@ function AppRoutes() {
           <Route path="accounting/skr03" element={<Skr03Page />} />
           <Route path="accounting/buchungssaetze" element={<BuchungssaetzePage />} />
           <Route path="accounting/buchungen" element={<BuchungenPage />} />
+          <Route path="admin/data-cleanup" element={<DataCleanupPage />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
       </Routes>

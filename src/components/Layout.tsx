@@ -37,8 +37,9 @@ export default function Layout() {
   const moreItems = [
     { path: '/contacts',            label: 'Kontakte',     icon: Users },
     { path: '/properties/areas',    label: 'Bereiche',     icon: Home },
-    ...((isAdmin || isSuperAdmin) ? [{ path: '/users',   label: 'Nutzer & Rechte', icon: ShieldCheck }] : []),
-    ...(isSuperAdmin              ? [{ path: '/setup',   label: 'Setup',           icon: Wrench }] : []),
+    ...((isAdmin || isSuperAdmin) ? [{ path: '/users',              label: 'Nutzer & Rechte', icon: ShieldCheck }] : []),
+    ...((isAdmin || isSuperAdmin) ? [{ path: '/admin/data-cleanup', label: 'Datenbereinigung', icon: Wrench }] : []),
+    ...(isSuperAdmin              ? [{ path: '/setup',              label: 'Setup',            icon: Wrench }] : []),
   ]
 
   const isActive = (path: string) => location.pathname.startsWith(path)
