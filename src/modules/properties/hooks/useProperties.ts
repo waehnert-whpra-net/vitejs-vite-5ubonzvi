@@ -412,22 +412,45 @@ export function useOrphanedUsages() {
   return useQuery({
     queryKey: ['orphaned_usages'],
     queryFn: async () => {
-      // Alle aktiven property_usages mit group_usage_id laden
+      // Schritt 1: Alle IDs aktiver group_usages laden
+      const { data: activeGroups, error: groupError } = await supabase
+        .from('group_usages')
+        .select('id')
+        .eq('is_active', true)
+      if (groupError) throw groupError
+      const activeGroupIds = (activeGroups ?? []).map((g: any) => g.id)
+
+      // Schritt 2: Aktive property_usages mit group_usage_id, die NICHT in der aktiven Liste sind
       const { data: usages, error } = await supabase
         .from('property_usages')
         .select(`
           id, unit_id, date_from, date_to, group_usage_id,
-          unit:property_units(id, name, short_code),
-          group_usage:group_usages!property_usages_group_usage_id_fkey(id, name, is_active)
+          unit:property_units(id, name, short_code)
         `)
         .eq('is_active', true)
         .not('group_usage_id', 'is', null)
       if (error) throw error
 
-      // Nur die filtern, deren group_usage inaktiv (gelöscht) ist
-      return ((usages ?? []) as any[]).filter(
-        u => u.group_usage && u.group_usage.is_active === false
+      // Nur die behalten, deren group_usage_id nicht mehr aktiv ist
+      const orphaned = ((usages ?? []) as any[]).filter(
+        u => !activeGroupIds.includes(u.group_usage_id)
       )
+
+      // Schritt 3: Namen der gelöschten group_usages nachladen (auch inaktive)
+      const orphanedGroupIds = [...new Set(orphaned.map((u: any) => u.group_usage_id))]
+      let groupNames: Record<string, string> = {}
+      if (orphanedGroupIds.length > 0) {
+        const { data: inactiveGroups } = await supabase
+          .from('group_usages')
+          .select('id, name')
+          .in('id', orphanedGroupIds)
+        ;(inactiveGroups ?? []).forEach((g: any) => { groupNames[g.id] = g.name })
+      }
+
+      return orphaned.map((u: any) => ({
+        ...u,
+        group_usage_name: groupNames[u.group_usage_id] ?? u.group_usage_id,
+      }))
     }
   })
 }

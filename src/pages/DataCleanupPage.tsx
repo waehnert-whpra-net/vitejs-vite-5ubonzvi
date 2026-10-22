@@ -118,7 +118,7 @@ export default function DataCleanupPage() {
                         </td>
                         <td className="px-3 py-2">
                           <span className="text-muted-foreground">
-                            {u.group_usage?.name ?? u.group_usage_id}
+                            {u.group_usage_name ?? u.group_usage_id}
                           </span>
                           <Badge variant="destructive" className="ml-2 text-xs">gelöscht</Badge>
                         </td>
