@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
-import { useHasRole, useIsAdmin, useIsSuperAdmin } from '@/hooks/usePermissions'
+import { useHasRole, useIsAdmin, useIsSuperAdmin, useMyRoleName } from '@/hooks/usePermissions'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Info, ShieldCheck, UserCheck, UserX,
@@ -35,15 +35,10 @@ export default function Dashboard() {
   const { data: hasRole, isLoading } = useHasRole()
   const isAdmin = useIsAdmin()
   const { data: isSuperAdmin } = useIsSuperAdmin()
+  const { data: myRoleName } = useMyRoleName()
 
-  // ── Rolle bestimmen ──────────────────────────────────────────────────────
-  const roleName = isSuperAdmin
-    ? 'Super-Admin'
-    : isAdmin
-      ? 'Admin'
-      : hasRole
-        ? 'Mitarbeiter'
-        : 'Gast'
+  // ── Rolle bestimmen (echter Rollenname aus der Datenbank) ───────────────
+  const roleName = myRoleName ?? (isSuperAdmin ? 'Super-Admin' : hasRole ? 'Mitarbeiter' : 'Gast')
 
   const roleColor =
     isSuperAdmin ? 'bg-purple-100 text-purple-800 border-purple-200' :

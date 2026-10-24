@@ -36,6 +36,25 @@ export function useIsSuperAdmin() {
   })
 }
 
+// Name der Rolle des aktuellen Nutzers (z. B. "Manager"), null wenn keine Rolle vergeben ist.
+export function useMyRoleName() {
+  return useQuery({
+    queryKey: ['my_role_name'],
+    queryFn: async () => {
+      const { data: userData } = await supabase.auth.getUser()
+      if (!userData.user) return null
+
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role:roles(name)')
+        .eq('user_id', userData.user.id)
+        .limit(1)
+      if (error) throw error
+      return ((data?.[0] as any)?.role?.name as string | undefined) ?? null
+    }
+  })
+}
+
 // Prüft, ob dem aktuellen Nutzer überhaupt eine Rolle zugewiesen ist.
 // Neu registrierte Nutzer haben noch keine Rolle -> nur Dashboard sichtbar.
 export function useHasRole() {
