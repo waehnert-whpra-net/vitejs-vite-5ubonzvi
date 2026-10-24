@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
+import { clearSetPasswordFlag } from '@/lib/captureAuthFlow'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { KeyRound, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 
+// Diese Seite wird in App.tsx außerhalb des Routers gerendert (Einladung,
+// Passwort-Reset, "Passwort ändern") – deshalb kein useNavigate().
 export default function ResetPassword() {
-  const navigate = useNavigate()
   const [password, setPassword] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
   const [saving, setSaving] = useState(false)
@@ -45,7 +46,9 @@ export default function ResetPassword() {
       const { error } = await supabase.auth.updateUser({ password })
       if (error) throw error
       setDone(true)
-      setTimeout(() => navigate('/dashboard'), 3000)
+      clearSetPasswordFlag()
+      // Vollständiger Seitenaufruf, damit die App mit der neuen Session sauber startet
+      setTimeout(() => window.location.assign('/dashboard'), 2000)
     } catch (err: any) {
       setError(err.message ?? 'Fehler beim Speichern des Passworts.')
     } finally {

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
+import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -31,6 +32,27 @@ export default function Login() {
         await signUpWithEmail(email, password, fullName)
         setSuccess('Registrierung erfolgreich! Bitte bestätige deine E-Mail-Adresse über den Link, den wir dir geschickt haben. Danach kannst du dich anmelden.')
       }
+    } catch (err: any) {
+      setError(err.message ?? 'Ein Fehler ist aufgetreten')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleForgotPassword = async () => {
+    setError(null)
+    setSuccess(null)
+    if (!email.trim()) {
+      setError('Bitte zuerst oben deine E-Mail-Adresse eintragen.')
+      return
+    }
+    setLoading(true)
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+      if (error) throw error
+      setSuccess('Wenn die Adresse bei uns registriert ist, haben wir dir einen Link zum Setzen eines neuen Passworts geschickt.')
     } catch (err: any) {
       setError(err.message ?? 'Ein Fehler ist aufgetreten')
     } finally {
@@ -142,6 +164,16 @@ export default function Login() {
                   minLength={6}
                 />
               </div>
+              {mode === 'login' && (
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={loading}
+                  className="mt-1.5 text-xs text-blue-600 hover:underline"
+                >
+                  Passwort vergessen?
+                </button>
+              )}
             </div>
 
             {error && (

@@ -1,7 +1,7 @@
 import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
-import { Users, LogOut, Menu, X, Home, CalendarDays, LayoutDashboard, MoreHorizontal, ChevronDown, ChevronRight, ShieldCheck, Wrench, BookOpen } from 'lucide-react'
+import { Users, LogOut, KeyRound, Menu, X, Home, CalendarDays, LayoutDashboard, MoreHorizontal, ChevronDown, ChevronRight, ShieldCheck, Wrench, BookOpen } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { useIsAdmin, useIsSuperAdmin, useHasRole } from '@/hooks/usePermissions'
 import nafLogo from '@/assets/naf-logo.png'
@@ -144,6 +144,14 @@ export default function Layout() {
 
           <div className="flex items-center gap-3">
             <span className="hidden md:block text-sm text-gray-500 truncate max-w-48">{user?.email}</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => window.location.assign('/reset-password')}
+              title="Passwort ändern"
+            >
+              <KeyRound className="h-4 w-4" />
+            </Button>
             <Button variant="ghost" size="icon" onClick={signOut} title="Abmelden">
               <LogOut className="h-4 w-4" />
             </Button>

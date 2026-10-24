@@ -85,12 +85,44 @@ serve(async (req) => {
       notify_new_users: false,
     }, { onConflict: 'id' })
 
-    // Assign role if provided
+    // Assign role if provided (Fehler werden geprüft statt ignoriert)
     if (roleId) {
-      await adminClient.rpc('set_user_role', {
+      let roleErrorMsg: string | null = null
+
+      const { error: rpcError } = await adminClient.rpc('set_user_role', {
         p_user_id: newUserId,
         p_role_id: roleId,
       })
+      if (rpcError) {
+        // Die RPC prüft evtl. auth.uid() und greift mit dem Service-Role-Key nicht –
+        // dann direkt in user_roles schreiben.
+        console.error('invite-user set_user_role rpc error:', rpcError)
+        await adminClient.from('user_roles').delete().eq('user_id', newUserId)
+        const { error: insertError } = await adminClient
+          .from('user_roles')
+          .insert({ user_id: newUserId, role_id: roleId })
+        if (insertError) {
+          console.error('invite-user user_roles insert error:', insertError)
+          roleErrorMsg = insertError.message
+        }
+      }
+
+      // Kontrolle: ist die Rolle wirklich gespeichert?
+      if (!roleErrorMsg) {
+        const { data: check } = await adminClient
+          .from('user_roles')
+          .select('role_id')
+          .eq('user_id', newUserId)
+          .eq('role_id', roleId)
+          .limit(1)
+        if (!check || check.length === 0) roleErrorMsg = 'Rolle wurde nicht gespeichert'
+      }
+
+      if (roleErrorMsg) {
+        return json({
+          error: `Nutzer wurde eingeladen, aber die Rolle konnte nicht gesetzt werden: ${roleErrorMsg}. Bitte Rolle im Nutzer-Formular nachtragen.`,
+        }, 500)
+      }
     }
 
     return json({ success: true, userId: newUserId })

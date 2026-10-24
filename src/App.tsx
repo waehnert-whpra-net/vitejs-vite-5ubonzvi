@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query'
+import { needsSetPassword } from '@/lib/captureAuthFlow'
 import { useAuth } from '@/hooks/useAuth'
 import { useHasRole } from '@/hooks/usePermissions'
 import Layout from '@/components/Layout'
@@ -37,8 +39,24 @@ const queryClient = new QueryClient({
 function AppRoutes() {
   const { user, loading } = useAuth()
   const { data: hasRole, isLoading: roleLoading } = useHasRole()
+  const queryClient = useQueryClient()
 
-  if (loading || (user && roleLoading)) {
+  // Rollen- und Rechte-Abfragen wurden evtl. schon vor dem Login ausgeführt
+  // (Ergebnis "keine Rolle") und bleiben sonst bis zu 30 s im Cache. Bei jedem
+  // Wechsel des angemeldeten Nutzers (z. B. nach dem Klick auf den
+  // Einladungslink) alles neu laden, bevor die App angezeigt wird.
+  const userId = user?.id ?? null
+  const [syncedUserId, setSyncedUserId] = useState<string | null>(null)
+  useEffect(() => {
+    if (loading) return
+    let cancelled = false
+    queryClient.resetQueries().finally(() => {
+      if (!cancelled) setSyncedUserId(userId)
+    })
+    return () => { cancelled = true }
+  }, [userId, loading, queryClient])
+
+  if (loading || (user && (roleLoading || syncedUserId !== userId))) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -49,8 +67,11 @@ function AppRoutes() {
     )
   }
 
-  // Passwort-Reset-Seite ist ohne Login erreichbar
-  if (window.location.pathname === '/reset-password') return <ResetPassword />
+  // Passwort-Seite: per Link (/reset-password) oder nach Einladung/Recovery-Link
+  // (auch wenn der Link auf einer anderen URL gelandet ist) – ohne Passwort kein App-Zugang
+  if (window.location.pathname === '/reset-password' || (user && needsSetPassword())) {
+    return <ResetPassword />
+  }
 
   if (!user) return <Login />
 
