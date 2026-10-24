@@ -157,11 +157,21 @@ export function useInviteUser() {
       lastName: string | null
       roleId: string | null
     }) => {
-      // Use Supabase admin invite
       const { data, error } = await supabase.functions.invoke('invite-user', {
         body: { email, firstName, lastName, roleId },
       })
-      if (error) throw error
+      if (error) {
+        // Echte Fehlermeldung aus der Response der Edge Function lesen
+        let message = error.message
+        try {
+          const body = await (error as any).context?.json?.()
+          if (body?.error) message = body.error
+        } catch {
+          // Body nicht lesbar – Standardmeldung beibehalten
+        }
+        throw new Error(message)
+      }
+      if (data?.error) throw new Error(data.error)
       return data
     },
     onSuccess: () => {
