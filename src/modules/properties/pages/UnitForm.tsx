@@ -271,24 +271,25 @@ export default function UnitForm() {
               </div>
             </div>
 
-            <div>
-              <Label>Bereich *</Label>
-              <Select value={form.area_id} onValueChange={v => set('area_id', v)}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Bereich wählen" />
-                </SelectTrigger>
-                <SelectContent>
-                  {areas?.map(a => (
-                    <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label>Lage</Label>
-              <Input className="mt-1" placeholder="z.B. 1. OG 1. Einheit"
-                value={form.location} onChange={e => set('location', e.target.value)} />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Bereich *</Label>
+                <Select value={form.area_id} onValueChange={v => set('area_id', v)}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Bereich wählen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {areas?.map(a => (
+                      <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Lage</Label>
+                <Input className="mt-1" placeholder="z.B. 1. OG 1. Einheit"
+                  value={form.location} onChange={e => set('location', e.target.value)} />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -524,55 +525,6 @@ export default function UnitForm() {
           </CardContent>
         </Card>
 
-        {/* Darstellung & Referenzen */}
-        <Card>
-          <CardHeader><CardTitle className="text-lg">Darstellung & Referenzen</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <Label>Nummer</Label>
-                <Input className="mt-1" type="number" placeholder="z.B. 1"
-                  value={form.nr} onChange={e => set('nr', e.target.value)} />
-              </div>
-              <div>
-                <Label>Kürzel alt</Label>
-                <Input className="mt-1" placeholder="Altes Kürzel"
-                  value={form.short_code_old} onChange={e => set('short_code_old', e.target.value)} />
-              </div>
-              <div>
-                <Label>Lage (geo)</Label>
-                <Input className="mt-1" placeholder="z.B. 1. OG Nord"
-                  value={form.location_geo} onChange={e => set('location_geo', e.target.value)} />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Farbe</Label>
-                <div className="flex items-center gap-2 mt-1">
-                  <input
-                    type="color"
-                    value={form.color || '#e5e7eb'}
-                    onChange={e => set('color', e.target.value)}
-                    className="h-10 w-16 rounded border border-input cursor-pointer"
-                  />
-                  <Input
-                    value={form.color}
-                    onChange={e => set('color', e.target.value)}
-                    placeholder="#e5e7eb"
-                    className="flex-1"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label>MagicPlan Referenz</Label>
-                <Input className="mt-1" placeholder="z.B. 1301"
-                  value={form.magic_plan} onChange={e => set('magic_plan', e.target.value)} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Dokumente */}
         <Card>
           <CardHeader><CardTitle className="text-lg">Dokumente</CardTitle></CardHeader>
@@ -628,6 +580,57 @@ export default function UnitForm() {
             />
           </CardContent>
         </Card>
+
+        {/* Darstellung & Referenzen – nur für Administratoren, ganz unten */}
+        {isAdmin && (
+          <Card>
+            <CardHeader><CardTitle className="text-lg">Darstellung & Referenzen</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label>Nummer</Label>
+                  <Input className="mt-1" type="number" placeholder="z.B. 1"
+                    value={form.nr} onChange={e => set('nr', e.target.value)} />
+                </div>
+                <div>
+                  <Label>Kürzel alt</Label>
+                  <Input className="mt-1" placeholder="Altes Kürzel"
+                    value={form.short_code_old} onChange={e => set('short_code_old', e.target.value)} />
+                </div>
+                <div>
+                  <Label>Lage (geo)</Label>
+                  <Input className="mt-1" placeholder="z.B. 1. OG Nord"
+                    value={form.location_geo} onChange={e => set('location_geo', e.target.value)} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Farbe</Label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <input
+                      type="color"
+                      value={form.color || '#e5e7eb'}
+                      onChange={e => set('color', e.target.value)}
+                      className="h-10 w-16 rounded border border-input cursor-pointer"
+                    />
+                    <Input
+                      value={form.color}
+                      onChange={e => set('color', e.target.value)}
+                      placeholder="#e5e7eb"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label>MagicPlan Referenz</Label>
+                  <Input className="mt-1" placeholder="z.B. 1301"
+                    value={form.magic_plan} onChange={e => set('magic_plan', e.target.value)} />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Speichern / Löschen */}
         <div className="flex justify-between items-center pb-6">
