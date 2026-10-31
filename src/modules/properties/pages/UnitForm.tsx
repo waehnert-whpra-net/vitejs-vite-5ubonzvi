@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ArrowLeft, Save, Upload, X, Trash2 } from 'lucide-react'
 import FolderPicker from '@/components/FolderPicker'
+import UnitEquipmentCard from '../components/UnitEquipmentCard'
 
 const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Nacht']
 const CLEANING_STATUSES = ['gereinigt', 'zu reinigen', 'in Reinigung']
@@ -524,6 +525,9 @@ export default function UnitForm() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Ausstattung – nur bei bestehender Einheit */}
+        {isEdit && id && <UnitEquipmentCard unitId={id} />}
 
         {/* Dokumente */}
         <Card>
