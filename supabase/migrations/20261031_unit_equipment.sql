@@ -78,7 +78,7 @@ grant select, insert, update, delete on public.unit_equipment to authenticated;
 
 -- Grundausstattung für alle Einheiten mit Betten > 1 (aus naf.xlsx)
 -- 'x' = Anzahl entspricht "Max. Aufbettung auf" der Einheit
--- Anzahl-IST startet bei 0 (noch nicht gezählt)
+-- Anzahl-IST startet gleich Anzahl-SOLL (Ausstattung ist bereits vorhanden)
 with tpl (sort_order, bereich, ausstattung, qty) as (
   values
     (1, 'Küche', 'Wasserkocher', '1'),
@@ -113,26 +113,26 @@ with tpl (sort_order, bereich, ausstattung, qty) as (
     (30, 'Küche', 'Geschirrtuch', '1'),
     (31, 'Küche', 'Mülleimer mit Deckel', '1'),
     (32, 'Küche', 'Müllbeutel-Packung', '1'),
-    (33, 'Schlafzimmer', 'Bettlaken', '0'),
-    (34, 'Schlafzimmer', 'Bettbezug', '0'),
-    (35, 'Schlafzimmer', 'Kopfkissenbezug', '0'),
-    (36, 'Schlafzimmer', 'Bettdecke', '0'),
-    (37, 'Schlafzimmer', 'Kopfkissen voll', '0'),
-    (38, 'Schlafzimmer', 'Kopfkissen flach', '0'),
-    (39, 'Bad', 'Handtuch groß', '0'),
-    (40, 'Bad', 'Handtuch klein', '0'),
-    (41, 'Bad', 'Handwaschseife', '0'),
-    (42, 'Bad', 'Toilettenpapier', '0'),
-    (43, 'Bad', 'Abfallbehälter klein', '0'),
-    (44, 'Bad', 'Duschbad', '0'),
-    (45, 'Bad', 'Toilettenbürste', '0')
+    (33, 'Schlafzimmer', 'Bettlaken', '1'),
+    (34, 'Schlafzimmer', 'Bettbezug', '2'),
+    (35, 'Schlafzimmer', 'Kopfkissenbezug', '2'),
+    (36, 'Schlafzimmer', 'Bettdecke', '2'),
+    (37, 'Schlafzimmer', 'Kopfkissen voll', '2'),
+    (38, 'Schlafzimmer', 'Kopfkissen flach', '2'),
+    (39, 'Bad', 'Handtuch groß', '2'),
+    (40, 'Bad', 'Handtuch klein', '2'),
+    (41, 'Bad', 'Handwaschseife', '2'),
+    (42, 'Bad', 'Toilettenpapier', '2'),
+    (43, 'Bad', 'Abfallbehälter klein', '2'),
+    (44, 'Bad', 'Duschbad', '2'),
+    (45, 'Bad', 'Toilettenbürste', '2')
 )
 insert into public.unit_equipment (unit_id, bereich, ausstattung, anzahl_soll, anzahl_ist, sort_order)
 select u.id,
        t.bereich,
        t.ausstattung,
        case when t.qty = 'x' then coalesce(u.max_extra_beds, u.max_persons, 0) else t.qty::int end,
-       0,
+       case when t.qty = 'x' then coalesce(u.max_extra_beds, u.max_persons, 0) else t.qty::int end,
        t.sort_order
 from public.property_units u
 cross join tpl t
