@@ -7,7 +7,20 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ArrowLeft, Save, Search, UserPlus } from 'lucide-react'
+import { ArrowLeft, Save, Search, UserPlus, Link2, ExternalLink, Pencil } from 'lucide-react'
+
+// Nur http(s)-Links zulassen; fehlendes Schema (z. B. "drive.google.com/...") ergänzen
+function normalizeUrl(raw: string): string | null {
+  const t = raw.trim()
+  if (!t) return null
+  const withScheme = /^[a-z][a-z0-9+.-]*:/i.test(t) ? t : `https://${t}`
+  try {
+    const u = new URL(withScheme)
+    return u.protocol === 'http:' || u.protocol === 'https:' ? u.toString() : null
+  } catch {
+    return null
+  }
+}
 
 
 const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Tag und Person']
@@ -37,6 +50,7 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Ta
   const [contactSearch, setContactSearch] = useState('')
   const [unitSearch, setUnitSearch] = useState('')
   const [onlyAvailableUnits, setOnlyAvailableUnits] = useState(false)
+  const [editingLink, setEditingLink] = useState(false)
 
   type FormState = {
     unit_id: string
@@ -58,6 +72,8 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Ta
     notes: string
     show_in_calendar: boolean
     calendar_comment: string
+    link_url: string
+    link_label: string
   }
 
   const emptyForm: FormState = {
@@ -80,6 +96,8 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Ta
     notes: '',
     show_in_calendar: true,
     calendar_comment: '',
+    link_url: '',
+    link_label: '',
   }
 
   const [form, setForm] = useState<FormState>(() =>
@@ -110,6 +128,8 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Ta
       notes: existing.notes ?? '',
       show_in_calendar: existing.show_in_calendar ?? true,
       calendar_comment: existing.calendar_comment ?? '',
+      link_url: existing.link_url ?? '',
+      link_label: existing.link_label ?? '',
     })
   }, [existing])
 
@@ -226,6 +246,11 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Ta
   }
 
   const handleSave = async () => {
+    if (form.link_url.trim() && !normalizeUrl(form.link_url)) {
+      setError('Der Link ist ungültig. Bitte eine Adresse wie https://drive.google.com/... eintragen.')
+      setEditingLink(true)
+      return
+    }
     setSaving(true)
     setError(null)
     try {
@@ -250,6 +275,8 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Ta
         notes: form.notes || null,
         show_in_calendar: form.show_in_calendar,
         calendar_comment: form.calendar_comment || null,
+        link_url: normalizeUrl(form.link_url),
+        link_label: normalizeUrl(form.link_url) ? (form.link_label.trim() || null) : null,
       })
       navigate('/properties/usages')
     } catch (err: any) {
@@ -427,6 +454,56 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Ta
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Link (z. B. Vertrag in Google Drive) */}
+            <div>
+              <Label>Link</Label>
+              {(() => {
+                const safeUrl = normalizeUrl(form.link_url)
+                const showInputs = editingLink || !safeUrl
+                if (!showInputs && safeUrl) {
+                  return (
+                    <div className="mt-1 flex items-center gap-2">
+                      <a
+                        href={safeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-sm text-blue-700 hover:underline bg-blue-50 px-3 py-2 rounded"
+                        title={safeUrl}
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        {form.link_label.trim() || safeUrl}
+                      </a>
+                      <Button
+                        type="button" variant="ghost" size="icon" className="h-8 w-8"
+                        title="Link bearbeiten" onClick={() => setEditingLink(true)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )
+                }
+                return (
+                  <div className="mt-1 grid grid-cols-2 gap-3">
+                    <div className="relative">
+                      <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        className="pl-10"
+                        placeholder="Bezeichnung, z. B. Mietvertrag"
+                        value={form.link_label}
+                        onChange={e => set('link_label', e.target.value)}
+                      />
+                    </div>
+                    <Input
+                      placeholder="https://drive.google.com/..."
+                      value={form.link_url}
+                      onChange={e => set('link_url', e.target.value)}
+                      onBlur={() => { if (normalizeUrl(form.link_url)) setEditingLink(false) }}
+                    />
+                  </div>
+                )
+              })()}
             </div>
           </CardContent>
         </Card>

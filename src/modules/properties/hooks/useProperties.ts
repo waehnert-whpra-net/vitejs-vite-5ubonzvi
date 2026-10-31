@@ -75,6 +75,8 @@ export type PropertyUsage = {
   is_active: boolean
   show_in_calendar: boolean
   calendar_comment: string | null
+  link_url: string | null
+  link_label: string | null
   notes: string | null
   unit?: PropertyUnit
   contact?: {
