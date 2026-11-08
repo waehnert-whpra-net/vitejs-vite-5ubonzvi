@@ -718,22 +718,37 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Ta
           </CardHeader>
           <CardContent className="space-y-3">
             {form.link_url && normalizeUrl(form.link_url) ? (
-              <div className="flex items-center gap-2">
+              <div className="space-y-2">
                 <a
                   href={normalizeUrl(form.link_url)!}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-sm text-blue-700 hover:underline bg-blue-50 px-3 py-2 rounded flex-1"
+                  className="inline-flex items-center gap-2 text-sm text-blue-700 hover:underline bg-blue-50 px-3 py-2 rounded w-full"
                 >
                   <ExternalLink className="h-4 w-4 shrink-0" />
-                  {form.link_label.trim() || normalizeUrl(form.link_url)}
+                  Ordner öffnen →
                 </a>
-                <Button
-                  type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0"
-                  title="Link bearbeiten" onClick={() => setEditingLink(true)}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
+                <div>
+                  <Label className="flex items-center gap-1.5 text-xs text-gray-500">
+                    <Link2 className="h-3 w-3" />
+                    Link
+                  </Label>
+                  <Input
+                    value={form.link_url}
+                    onChange={e => set('link_url', e.target.value)}
+                    placeholder="https://..."
+                    className="mt-1 font-mono text-xs"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-500">Bezeichnung</Label>
+                  <Input
+                    value={form.link_label}
+                    onChange={e => set('link_label', e.target.value)}
+                    placeholder="z.B. Mietvertrag"
+                    className="mt-1 text-xs"
+                  />
+                </div>
               </div>
             ) : (
               <div className="space-y-2">
@@ -757,6 +772,18 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Ta
                 {folderError && (
                   <p className="text-xs text-red-600">{folderError}</p>
                 )}
+                <div>
+                  <Label className="flex items-center gap-1.5 text-xs text-gray-500">
+                    <Link2 className="h-3 w-3" />
+                    Oder Link manuell eintragen
+                  </Label>
+                  <Input
+                    value={form.link_url}
+                    onChange={e => set('link_url', e.target.value)}
+                    placeholder="https://drive.google.com/..."
+                    className="mt-1 font-mono text-xs"
+                  />
+                </div>
               </div>
             )}
           </CardContent>
