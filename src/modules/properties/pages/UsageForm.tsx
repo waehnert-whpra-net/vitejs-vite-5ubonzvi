@@ -7,7 +7,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ArrowLeft, Save, Search, UserPlus, Link2, ExternalLink, Pencil } from 'lucide-react'
+import { ArrowLeft, Save, Search, UserPlus, Link2, ExternalLink, Pencil, FolderOpen, FolderPlus, Loader2 } from 'lucide-react'
+import { useAppSettings } from '@/hooks/useAppSettings'
+import { supabase } from '@/lib/supabase'
 
 // Nur http(s)-Links zulassen; fehlendes Schema (z. B. "drive.google.com/...") ergänzen
 function normalizeUrl(raw: string): string | null {
@@ -45,12 +47,17 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Ta
   const allUsages = allUsagesResult ?? []
   const contacts = contactsResult?.data ?? []
 
+  const { data: appSettings } = useAppSettings(['default_documents_folder'])
+  const baseFolder = appSettings?.default_documents_folder ?? ''
+
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [contactSearch, setContactSearch] = useState('')
   const [unitSearch, setUnitSearch] = useState('')
   const [onlyAvailableUnits, setOnlyAvailableUnits] = useState(false)
   const [editingLink, setEditingLink] = useState(false)
+  const [creatingFolder, setCreatingFolder] = useState(false)
+  const [folderError, setFolderError] = useState<string | null>(null)
 
   type FormState = {
     unit_id: string
@@ -242,6 +249,43 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Ta
         return rate.toFixed(2)
       default:
         return ''
+    }
+  }
+
+  const buildFolderName = (): string => {
+    const unitName = getUnitName(form.unit_id).replace(/^\[.*?\]\s*/, '').trim()
+    const datePart = form.date_from
+      ? (form.date_to && form.date_to !== form.date_from
+          ? `${form.date_from}_-_${form.date_to}`
+          : form.date_from)
+      : ''
+    return datePart ? `${datePart}_${unitName}` : unitName
+  }
+
+  const handleCreateFolder = async () => {
+    setCreatingFolder(true)
+    setFolderError(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const folderName = buildFolderName()
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/graph-service`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ action: 'createFolder', payload: { path: baseFolder, name: folderName } }),
+        }
+      )
+      const json = await res.json()
+      if (!json.success) throw new Error(json.error ?? 'Fehler beim Erstellen des Verzeichnisses')
+      setForm(f => ({ ...f, link_url: json.webUrl ?? '', link_label: folderName }))
+    } catch (err: any) {
+      setFolderError(err.message ?? 'Unbekannter Fehler')
+    } finally {
+      setCreatingFolder(false)
     }
   }
 
@@ -671,6 +715,60 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Ta
     />
   </CardContent>
 </Card>
+
+        {/* Dokumente & Verträge */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <FolderOpen className="h-4 w-4 text-blue-500" />
+              Dokumente &amp; Verträge
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {form.link_url && normalizeUrl(form.link_url) ? (
+              <div className="flex items-center gap-2">
+                <a
+                  href={normalizeUrl(form.link_url)!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm text-blue-700 hover:underline bg-blue-50 px-3 py-2 rounded flex-1"
+                >
+                  <ExternalLink className="h-4 w-4 shrink-0" />
+                  {form.link_label.trim() || normalizeUrl(form.link_url)}
+                </a>
+                <Button
+                  type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0"
+                  title="Link bearbeiten" onClick={() => setEditingLink(true)}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2 w-full justify-center"
+                  disabled={creatingFolder || !form.unit_id || !baseFolder}
+                  onClick={handleCreateFolder}
+                >
+                  {creatingFolder
+                    ? <><Loader2 className="h-4 w-4 animate-spin" /> Verzeichnis wird erstellt…</>
+                    : <><FolderPlus className="h-4 w-4" /> Verzeichnis erstellen</>}
+                </Button>
+                {!baseFolder && (
+                  <p className="text-xs text-amber-600">Kein Basisordner konfiguriert (Setup → Verzeichnis Dokumente)</p>
+                )}
+                {!form.unit_id && (
+                  <p className="text-xs text-gray-400">Zuerst eine Einheit auswählen</p>
+                )}
+                {folderError && (
+                  <p className="text-xs text-red-600">{folderError}</p>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Speichern */}
         <div className="flex justify-end gap-3 pb-6">

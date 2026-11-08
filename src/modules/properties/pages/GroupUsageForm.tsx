@@ -13,8 +13,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
   ArrowLeft, Save, CalendarDays, Building2,
-  Link, FolderOpen, Check, X, Bed, Users, Trash2, Loader2, UserPlus
+  Link, FolderOpen, Check, X, Bed, Users, Trash2, Loader2, UserPlus, FolderPlus, ExternalLink
 } from 'lucide-react'
+import { useAppSettings } from '@/hooks/useAppSettings'
+import { supabase } from '@/lib/supabase'
 
 type UnitPersons = { adults: number; children: number; extraBeds: number }
 
@@ -39,8 +41,13 @@ export default function GroupUsageForm() {
   const isAdmin = useIsAdmin()
   const { data: isSuperAdmin } = useIsSuperAdmin()
 
+  const { data: appSettings } = useAppSettings(['default_documents_folder'])
+  const baseFolder = appSettings?.default_documents_folder ?? ''
+
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [creatingFolder, setCreatingFolder] = useState(false)
+  const [folderError, setFolderError] = useState<string | null>(null)
 
   const handleDelete = async () => {
     if (!id) return
@@ -154,6 +161,42 @@ export default function GroupUsageForm() {
     if (!c) return ''
     if (c.is_company) return c.company_name ?? ''
     return [c.first_name, c.last_name].filter(Boolean).join(' ')
+  }
+
+  const buildGroupFolderName = (): string => {
+    const datePart = form.date_from
+      ? (form.date_to && form.date_to !== form.date_from
+          ? `${form.date_from}_-_${form.date_to}`
+          : form.date_from)
+      : ''
+    return datePart ? `${datePart}_${form.name}` : form.name
+  }
+
+  const handleCreateFolder = async () => {
+    setCreatingFolder(true)
+    setFolderError(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const folderName = buildGroupFolderName()
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/graph-service`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ action: 'createFolder', payload: { path: baseFolder, name: folderName } }),
+        }
+      )
+      const json = await res.json()
+      if (!json.success) throw new Error(json.error ?? 'Fehler beim Erstellen des Verzeichnisses')
+      setForm((f: any) => ({ ...f, sharepoint_url: json.webUrl ?? '' }))
+    } catch (err: any) {
+      setFolderError(err.message ?? 'Unbekannter Fehler')
+    } finally {
+      setCreatingFolder(false)
+    }
   }
 
   const handleSave = async () => {
@@ -351,28 +394,66 @@ export default function GroupUsageForm() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div>
-                <Label className="flex items-center gap-1.5">
-                  <Link className="h-3.5 w-3.5" />
-                  SharePoint-Link (Ordner)
-                </Label>
-                <Input
-                  value={form.sharepoint_url}
-                  onChange={e => setForm(f => ({ ...f, sharepoint_url: e.target.value }))}
-                  placeholder="https://whpra.sharepoint.com/..."
-                  className="mt-1 font-mono text-xs"
-                />
-                {form.sharepoint_url && (
+              {form.sharepoint_url ? (
+                <div className="space-y-2">
                   <a
                     href={form.sharepoint_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-blue-600 hover:underline mt-1 inline-block"
+                    className="inline-flex items-center gap-2 text-sm text-blue-700 hover:underline bg-blue-50 px-3 py-2 rounded w-full"
                   >
+                    <ExternalLink className="h-4 w-4 shrink-0" />
                     Ordner öffnen →
                   </a>
-                )}
-              </div>
+                  <div>
+                    <Label className="flex items-center gap-1.5 text-xs text-gray-500">
+                      <Link className="h-3 w-3" />
+                      SharePoint-Link
+                    </Label>
+                    <Input
+                      value={form.sharepoint_url}
+                      onChange={e => setForm((f: any) => ({ ...f, sharepoint_url: e.target.value }))}
+                      placeholder="https://whpra.sharepoint.com/..."
+                      className="mt-1 font-mono text-xs"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="gap-2 w-full justify-center"
+                    disabled={creatingFolder || !form.name || !baseFolder}
+                    onClick={handleCreateFolder}
+                  >
+                    {creatingFolder
+                      ? <><Loader2 className="h-4 w-4 animate-spin" /> Verzeichnis wird erstellt…</>
+                      : <><FolderPlus className="h-4 w-4" /> Verzeichnis erstellen</>}
+                  </Button>
+                  {!baseFolder && (
+                    <p className="text-xs text-amber-600">Kein Basisordner konfiguriert (Setup → Verzeichnis Dokumente)</p>
+                  )}
+                  {!form.name && (
+                    <p className="text-xs text-gray-400">Zuerst einen Event-Namen eingeben</p>
+                  )}
+                  {folderError && (
+                    <p className="text-xs text-red-600">{folderError}</p>
+                  )}
+                  <div>
+                    <Label className="flex items-center gap-1.5 text-xs text-gray-500">
+                      <Link className="h-3 w-3" />
+                      Oder Link manuell eintragen
+                    </Label>
+                    <Input
+                      value={form.sharepoint_url}
+                      onChange={e => setForm((f: any) => ({ ...f, sharepoint_url: e.target.value }))}
+                      placeholder="https://whpra.sharepoint.com/..."
+                      className="mt-1 font-mono text-xs"
+                    />
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
