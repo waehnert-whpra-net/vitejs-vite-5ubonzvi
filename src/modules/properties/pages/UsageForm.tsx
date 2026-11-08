@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, Save, Search, UserPlus, Link2, ExternalLink, Pencil, FolderOpen, FolderPlus, Loader2 } from 'lucide-react'
 import { useAppSettings } from '@/hooks/useAppSettings'
 import { supabase } from '@/lib/supabase'
+import DateRangePicker from '@/components/DateRangePicker'
 
 // Nur http(s)-Links zulassen; fehlendes Schema (z. B. "drive.google.com/...") ergänzen
 function normalizeUrl(raw: string): string | null {
@@ -595,21 +596,12 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Ta
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Von</Label>
-                <Input className="mt-1" type="date"
-                  value={form.date_from} onChange={e => set('date_from', e.target.value)} />
-              </div>
-              <div>
-                <Label>Bis {form.is_unlimited && '(unbefristet – wird ignoriert)'}</Label>
-                <Input className="mt-1" type="date"
-                  value={form.date_to}
-                  onChange={e => set('date_to', e.target.value)}
-                  disabled={form.is_unlimited}
-                />
-              </div>
-            </div>
+            <DateRangePicker
+              dateFrom={form.date_from}
+              dateTo={form.date_to}
+              disabled={form.is_unlimited}
+              onChange={(from, to) => setForm(f => ({ ...f, date_from: from, date_to: to }))}
+            />
           </CardContent>
         </Card>
 
