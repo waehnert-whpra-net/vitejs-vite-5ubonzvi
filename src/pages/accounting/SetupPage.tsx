@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useAppSettings, useSetAppSetting } from '@/hooks/useAppSettings'
+import { useDocumentTypes, useSaveDocumentType } from '@/modules/documents/hooks/useDocuments'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import FolderPicker from '@/components/FolderPicker'
-import { FolderOpen, Save, Settings, Building2 } from 'lucide-react'
+import { FolderOpen, Save, Settings, Building2, Plus, Pencil, Check, X } from 'lucide-react'
 
 const SETTING_KEYS = [
   'default_template_folder', 'default_documents_folder', 'default_belege_folder',
@@ -21,6 +22,38 @@ const SETTING_KEYS = [
 export default function SetupPage() {
   const { data: settings, isLoading } = useAppSettings(SETTING_KEYS)
   const setSetting = useSetAppSetting()
+  const { data: docTypes = [] } = useDocumentTypes()
+  const saveDocType = useSaveDocumentType()
+
+  // Belegtypen-Editor
+  type DtDraft = { id?: string; name: string; prefix: string; sort_order: string; is_active: boolean }
+  const [editingDt, setEditingDt] = useState<DtDraft | null>(null)
+  const [dtSaving, setDtSaving] = useState(false)
+  const [dtError, setDtError] = useState<string | null>(null)
+
+  const startNewDt = () => setEditingDt({ name: '', prefix: '', sort_order: String((docTypes.length + 1) * 10), is_active: true })
+  const startEditDt = (dt: typeof docTypes[0]) => setEditingDt({ id: dt.id, name: dt.name, prefix: dt.prefix, sort_order: String(dt.sort_order), is_active: dt.is_active })
+
+  const saveDt = async () => {
+    if (!editingDt) return
+    if (!editingDt.name.trim()) { setDtError('Name ist Pflicht'); return }
+    if (!editingDt.prefix.trim()) { setDtError('Präfix ist Pflicht'); return }
+    setDtSaving(true); setDtError(null)
+    try {
+      await saveDocType.mutateAsync({
+        ...(editingDt.id ? { id: editingDt.id } : {}),
+        name: editingDt.name.trim(),
+        prefix: editingDt.prefix.trim().toUpperCase(),
+        sort_order: parseInt(editingDt.sort_order) || 10,
+        is_active: editingDt.is_active,
+      })
+      setEditingDt(null)
+    } catch (e: any) {
+      setDtError(e.message ?? 'Fehler beim Speichern')
+    } finally {
+      setDtSaving(false)
+    }
+  }
 
   const [templateFolder, setTemplateFolder] = useState<string | null>(null)
   const [documentsFolder, setDocumentsFolder] = useState<string | null>(null)
@@ -208,6 +241,99 @@ export default function SetupPage() {
                   onChange={e => setFirmaBic(e.target.value)} placeholder="MUSTDEXXXX" disabled={isLoading} />
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Belegtypen */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Settings className="h-5 w-5 text-blue-600" />
+              Belegtypen
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-gray-500">Definiere die Belegarten (z.B. Rechnung, Angebot). Der Präfix erscheint in der Belegnummer.</p>
+
+            {/* Liste bestehender Typen */}
+            <div className="space-y-1">
+              {docTypes.length === 0 && !editingDt && (
+                <p className="text-sm text-gray-400 py-2">Noch keine Belegtypen angelegt.</p>
+              )}
+              {docTypes.map(dt => (
+                <div key={dt.id} className="flex items-center gap-2 px-3 py-2 rounded-md bg-gray-50 border border-gray-100">
+                  <span className="font-mono text-xs text-gray-400 w-16 shrink-0">{dt.prefix}-…</span>
+                  <span className="flex-1 text-sm font-medium text-gray-800">{dt.name}</span>
+                  <span className="text-xs text-gray-400">Reihenf. {dt.sort_order}</span>
+                  <button
+                    type="button"
+                    onClick={() => startEditDt(dt)}
+                    className="text-blue-400 hover:text-blue-600 p-1 rounded"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Inline-Editor */}
+            {editingDt ? (
+              <div className="border rounded-md p-3 bg-blue-50 border-blue-100 space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">Name *</Label>
+                    <Input
+                      className="mt-1 h-8 text-sm"
+                      value={editingDt.name}
+                      onChange={e => setEditingDt(d => d && ({ ...d, name: e.target.value }))}
+                      placeholder="z.B. Rechnung"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Präfix *</Label>
+                    <Input
+                      className="mt-1 h-8 text-sm font-mono"
+                      value={editingDt.prefix}
+                      onChange={e => setEditingDt(d => d && ({ ...d, prefix: e.target.value }))}
+                      placeholder="z.B. RE"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 items-end">
+                  <div>
+                    <Label className="text-xs">Reihenfolge</Label>
+                    <Input
+                      className="mt-1 h-8 text-sm"
+                      type="number"
+                      value={editingDt.sort_order}
+                      onChange={e => setEditingDt(d => d && ({ ...d, sort_order: e.target.value }))}
+                    />
+                  </div>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer pb-1">
+                    <input
+                      type="checkbox"
+                      checked={editingDt.is_active}
+                      onChange={e => setEditingDt(d => d && ({ ...d, is_active: e.target.checked }))}
+                      className="rounded"
+                    />
+                    Aktiv
+                  </label>
+                </div>
+                {dtError && <p className="text-xs text-red-600">{dtError}</p>}
+                <div className="flex gap-2">
+                  <Button size="sm" className="gap-1 h-7 text-xs" onClick={saveDt} disabled={dtSaving}>
+                    <Check className="h-3 w-3" />{dtSaving ? 'Speichert…' : 'Speichern'}
+                  </Button>
+                  <Button size="sm" variant="ghost" className="gap-1 h-7 text-xs" onClick={() => { setEditingDt(null); setDtError(null) }}>
+                    <X className="h-3 w-3" /> Abbrechen
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button size="sm" variant="outline" className="gap-1 h-7 text-xs" onClick={startNewDt}>
+                <Plus className="h-3.5 w-3.5" /> Belegtyp hinzufügen
+              </Button>
+            )}
           </CardContent>
         </Card>
 
