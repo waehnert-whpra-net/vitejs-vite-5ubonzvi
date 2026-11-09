@@ -78,10 +78,9 @@ export function useDocumentTypes() {
       const { data, error } = await supabase
         .from('document_types')
         .select('*')
-        .eq('is_active', true)
         .order('sort_order')
       if (error) throw error
-      return data as DocumentType[]
+      return (data as DocumentType[]).filter(d => d.is_active !== false)
     },
   })
 }
@@ -127,10 +126,9 @@ export function useDocuments() {
           contact:contacts(id, first_name, last_name, company_name, is_company,
             address_street, address_zip, address_city, address_country)
         `)
-        .eq('is_active', true)
         .order('created_at', { ascending: false })
       if (error) throw error
-      return data as unknown as Document[]
+      return (data as unknown as Document[]).filter(d => (d as any).is_active !== false)
     },
   })
 }

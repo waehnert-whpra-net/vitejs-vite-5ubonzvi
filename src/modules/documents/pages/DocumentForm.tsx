@@ -244,13 +244,31 @@ export default function DocumentForm() {
 
   // ─── PDF erstellen ──────────────────────────────────────────────────────────
   const handleCreatePdf = async () => {
-    if (!id || !existing) return
-    if (!existing.items || existing.items.length === 0) {
-      setPdfError('Keine Positionen vorhanden. Bitte zuerst speichern.')
+    if (!id || !existing) {
+      setPdfError('Beleg noch nicht geladen. Bitte kurz warten.')
       return
     }
     if (!existing.document_type) {
       setPdfError('Belegtyp nicht geladen.')
+      return
+    }
+    // Items entweder aus existing oder aus lokalem State nehmen
+    const pdfItems = (existing.items && existing.items.length > 0)
+      ? existing.items
+      : items
+          .filter(it => it.description.trim() && it.gross_unit_price)
+          .map((it, i) => ({
+            id: it.key,
+            document_id: id,
+            position: i + 1,
+            description: it.description.trim(),
+            quantity: parseFloat(it.quantity) || 1,
+            gross_unit_price: parseFloat(it.gross_unit_price) || 0,
+            vat_rate: parseFloat(it.vat_rate) || 0,
+            article_id: it.article_id,
+          }))
+    if (pdfItems.length === 0) {
+      setPdfError('Keine Positionen vorhanden. Bitte zuerst speichern.')
       return
     }
 
@@ -277,7 +295,7 @@ export default function DocumentForm() {
       const docForPdf = {
         ...existing,
         document_type: existing.document_type,
-        items: existing.items,
+        items: pdfItems,
       } as any
 
       let pdfBlob = await generateDocumentPdfBlob(docForPdf, firma)
