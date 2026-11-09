@@ -37,10 +37,14 @@ export type Document = {
     last_name: string | null
     company_name: string | null
     is_company: boolean
-    address_street: string | null
-    address_zip: string | null
-    address_city: string | null
-    address_country: string | null
+    contact_addresses?: Array<{
+      street: string | null
+      street_number: string | null
+      postal_code: string | null
+      city: string | null
+      country: string | null
+      is_primary: boolean
+    }>
   }
   items?: DocumentItem[]
 }
@@ -124,7 +128,7 @@ export function useDocuments() {
           *,
           document_type:document_types(*),
           contact:contacts(id, first_name, last_name, company_name, is_company,
-            address_street, address_zip, address_city, address_country)
+            contact_addresses(street, street_number, postal_code, city, country, is_primary))
         `)
         .order('created_at', { ascending: false })
       if (error) throw error
@@ -143,7 +147,7 @@ export function useDocument(id: string) {
           *,
           document_type:document_types(*),
           contact:contacts(id, first_name, last_name, company_name, is_company,
-            address_street, address_zip, address_city, address_country)
+            contact_addresses(street, street_number, postal_code, city, country, is_primary))
         `)
         .eq('id', id)
         .single()

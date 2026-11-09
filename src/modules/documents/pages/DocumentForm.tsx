@@ -250,7 +250,7 @@ export default function DocumentForm() {
     // Beleg direkt aus der DB laden (nicht auf React Query Cache angewiesen)
     const { data: freshDoc, error: fetchErr } = await supabase
       .from('documents')
-      .select(`*, document_type:document_types(*), contact:contacts(id, first_name, last_name, company_name, is_company, address_street, address_zip, address_city, address_country)`)
+      .select(`*, document_type:document_types(*), contact:contacts(id, first_name, last_name, company_name, is_company, contact_addresses(street, street_number, postal_code, city, country, is_primary))`)
       .eq('id', id)
       .single()
     if (fetchErr || !freshDoc) {
