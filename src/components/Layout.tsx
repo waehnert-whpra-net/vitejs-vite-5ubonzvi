@@ -1,7 +1,7 @@
 import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
-import { Users, LogOut, KeyRound, Menu, X, Home, CalendarDays, LayoutDashboard, MoreHorizontal, ChevronDown, ChevronRight, ShieldCheck, Wrench, BookOpen } from 'lucide-react'
+import { Users, LogOut, KeyRound, Menu, X, Home, CalendarDays, LayoutDashboard, MoreHorizontal, ChevronDown, ChevronRight, ShieldCheck, Wrench, BookOpen, Receipt } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { useIsAdmin, useIsSuperAdmin, useHasRole } from '@/hooks/usePermissions'
 import nafLogo from '@/assets/naf-logo.png'
@@ -32,6 +32,7 @@ export default function Layout() {
     { path: '/properties/units',    label: 'Einheiten',  icon: Home },
     { path: '/properties/usages',   label: 'Nutzungen',  icon: Users },
     { path: '/calendar',            label: 'Kalender',   icon: CalendarDays },
+    { path: '/documents',           label: 'Belege',     icon: Receipt },
   ]
 
   const moreItems = [

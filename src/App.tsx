@@ -29,6 +29,10 @@ import BuchungssaetzePage from '@/pages/accounting/BuchungssaetzePage'
 import BuchungenPage from '@/pages/accounting/BuchungenPage'
 import ResetPassword from '@/pages/ResetPassword'
 import DataCleanupPage from '@/pages/DataCleanupPage'
+import DocumentList from '@/modules/documents/pages/DocumentList'
+import DocumentForm from '@/modules/documents/pages/DocumentForm'
+import ArticleList from '@/modules/documents/pages/ArticleList'
+import ArticleForm from '@/modules/documents/pages/ArticleForm'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -123,6 +127,12 @@ function AppRoutes() {
           <Route path="accounting/buchungssaetze" element={<BuchungssaetzePage />} />
           <Route path="accounting/buchungen" element={<BuchungenPage />} />
           <Route path="admin/data-cleanup" element={<DataCleanupPage />} />
+          <Route path="documents" element={<DocumentList />} />
+          <Route path="documents/new" element={<DocumentForm />} />
+          <Route path="documents/:id/edit" element={<DocumentForm />} />
+          <Route path="documents/articles" element={<ArticleList />} />
+          <Route path="documents/articles/new" element={<ArticleForm />} />
+          <Route path="documents/articles/:id/edit" element={<ArticleForm />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
       </Routes>

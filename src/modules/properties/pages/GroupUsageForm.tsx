@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
   ArrowLeft, Save, CalendarDays, Building2,
-  Link, FolderOpen, Check, X, Bed, Users, Trash2, Loader2, UserPlus, FolderPlus, ExternalLink
+  Link, FolderOpen, Check, X, Bed, Users, Trash2, Loader2, UserPlus, FolderPlus, ExternalLink, Receipt
 } from 'lucide-react'
 import { useAppSettings } from '@/hooks/useAppSettings'
 import { supabase } from '@/lib/supabase'
@@ -650,6 +650,24 @@ export default function GroupUsageForm() {
 
         {/* Rechts: Abbrechen + Speichern */}
         <div className="flex items-center gap-3">
+          {id && (
+            <Button
+              variant="outline"
+              className="gap-2 border-blue-200 text-blue-700 hover:bg-blue-50"
+              onClick={() => navigate('/documents/new', {
+                state: {
+                  usage_id: id,
+                  contact_id: form.contact_id || undefined,
+                  service_from: form.date_from || undefined,
+                  service_to: form.date_to || undefined,
+                  subject_line2: form.name || undefined,
+                }
+              })}
+            >
+              <Receipt className="h-4 w-4" />
+              Beleg erstellen
+            </Button>
+          )}
           <Button variant="outline" onClick={() => navigate('/properties/usages')}>
             Abbrechen
           </Button>

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ArrowLeft, Save, Search, UserPlus, Link2, ExternalLink, Pencil, FolderOpen, FolderPlus, Loader2 } from 'lucide-react'
+import { ArrowLeft, Save, Search, UserPlus, Link2, ExternalLink, Pencil, FolderOpen, FolderPlus, Loader2, Receipt } from 'lucide-react'
 import { useAppSettings } from '@/hooks/useAppSettings'
 import { supabase } from '@/lib/supabase'
 import DateRangePicker from '@/components/DateRangePicker'
@@ -790,14 +790,35 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Ta
         </Card>
 
         {/* Speichern */}
-        <div className="flex justify-end gap-3 pb-6">
-          <Button variant="outline" onClick={() => navigate('/properties/usages')}>
-            Abbrechen
-          </Button>
-          <Button onClick={handleSave} disabled={saving} className="gap-2">
-            <Save className="h-4 w-4" />
-            {saving ? 'Wird gespeichert...' : 'Nutzung speichern'}
-          </Button>
+        <div className="flex justify-between gap-3 pb-6">
+          <div>
+            {id && (
+              <Button
+                variant="outline"
+                className="gap-2 border-blue-200 text-blue-700 hover:bg-blue-50"
+                onClick={() => navigate('/documents/new', {
+                  state: {
+                    usage_id: id,
+                    contact_id: form.contact_id || undefined,
+                    service_from: form.date_from || undefined,
+                    service_to: form.date_to || undefined,
+                  }
+                })}
+              >
+                <Receipt className="h-4 w-4" />
+                Beleg erstellen
+              </Button>
+            )}
+          </div>
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={() => navigate('/properties/usages')}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleSave} disabled={saving} className="gap-2">
+              <Save className="h-4 w-4" />
+              {saving ? 'Wird gespeichert...' : 'Nutzung speichern'}
+            </Button>
+          </div>
         </div>
       </div>
     </div>

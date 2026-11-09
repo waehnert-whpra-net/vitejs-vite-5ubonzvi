@@ -5,9 +5,18 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import FolderPicker from '@/components/FolderPicker'
-import { FolderOpen, Save, Settings } from 'lucide-react'
+import { FolderOpen, Save, Settings, Building2 } from 'lucide-react'
 
-const SETTING_KEYS = ['default_template_folder', 'default_documents_folder', 'default_belege_folder', 'default_belege_folder_eingang', 'default_belege_folder_ausgang', 'default_belege_folder_sonstiges', 'buchungs_prompt']
+const SETTING_KEYS = [
+  'default_template_folder', 'default_documents_folder', 'default_belege_folder',
+  'default_belege_folder_eingang', 'default_belege_folder_ausgang', 'default_belege_folder_sonstiges',
+  'buchungs_prompt',
+  // Firmendaten
+  'firma_name', 'firma_strasse', 'firma_plz', 'firma_ort', 'firma_land',
+  'firma_steuernummer', 'firma_ustid', 'firma_bankname', 'firma_iban', 'firma_bic',
+  // Beleg-Verzeichnisse
+  'documents_folder_rechnung', 'documents_folder_angebot',
+]
 
 export default function SetupPage() {
   const { data: settings, isLoading } = useAppSettings(SETTING_KEYS)
@@ -20,6 +29,22 @@ export default function SetupPage() {
   const [belegeFolderAusgang, setBelegeFolderAusgang] = useState<string | null>(null)
   const [belegeFolderSonstiges, setBelegeFolderSonstiges] = useState<string | null>(null)
   const [buchungsPrompt, setBuchungsPrompt] = useState<string | null>(null)
+  // Firmendaten
+  const [firmaName, setFirmaName] = useState<string | null>(null)
+  const [firmaStrasse, setFirmaStrasse] = useState<string | null>(null)
+  const [firmaPlz, setFirmaPlz] = useState<string | null>(null)
+  const [firmaOrt, setFirmaOrt] = useState<string | null>(null)
+  const [firmaLand, setFirmaLand] = useState<string | null>(null)
+  const [firmaSteuernummer, setFirmaSteuernummer] = useState<string | null>(null)
+  const [firmaUstid, setFirmaUstid] = useState<string | null>(null)
+  const [firmaBankname, setFirmaBankname] = useState<string | null>(null)
+  const [firmaIban, setFirmaIban] = useState<string | null>(null)
+  const [firmaBic, setFirmaBic] = useState<string | null>(null)
+  // Beleg-Verzeichnisse
+  const [belegeFolderRechnung, setBelegeFolderRechnung] = useState<string | null>(null)
+  const [belegeFolderAngebot, setBelegeFolderAngebot] = useState<string | null>(null)
+  const [showBelegePickerRechnung, setShowBelegePickerRechnung] = useState(false)
+  const [showBelegePickerAngebot, setShowBelegePickerAngebot] = useState(false)
   const [showBelegePicker, setShowBelegePicker] = useState(false)
   const [showBelegePickerEingang, setShowBelegePickerEingang] = useState(false)
   const [showBelegePickerAusgang, setShowBelegePickerAusgang] = useState(false)
@@ -38,6 +63,20 @@ export default function SetupPage() {
   const effectiveBelegeFolderAusgang = belegeFolderAusgang ?? settings?.default_belege_folder_ausgang ?? '/FLOX/Belege/Ausgangsrechnungen'
   const effectiveBelegeFolderSonstiges = belegeFolderSonstiges ?? settings?.default_belege_folder_sonstiges ?? '/FLOX/Belege/Sonstiges'
   const effectiveBuchungsPrompt = buchungsPrompt ?? settings?.buchungs_prompt ?? ''
+  // Firmendaten effektive Werte
+  const effectiveFirmaName = firmaName ?? settings?.firma_name ?? ''
+  const effectiveFirmaStrasse = firmaStrasse ?? settings?.firma_strasse ?? ''
+  const effectiveFirmaPlz = firmaPlz ?? settings?.firma_plz ?? ''
+  const effectiveFirmaOrt = firmaOrt ?? settings?.firma_ort ?? ''
+  const effectiveFirmaLand = firmaLand ?? settings?.firma_land ?? 'Deutschland'
+  const effectiveFirmaSteuernummer = firmaSteuernummer ?? settings?.firma_steuernummer ?? ''
+  const effectiveFirmaUstid = firmaUstid ?? settings?.firma_ustid ?? ''
+  const effectiveFirmaBankname = firmaBankname ?? settings?.firma_bankname ?? ''
+  const effectiveFirmaIban = firmaIban ?? settings?.firma_iban ?? ''
+  const effectiveFirmaBic = firmaBic ?? settings?.firma_bic ?? ''
+  // Beleg-Verzeichnisse effektive Werte
+  const effectiveBelegeFolderRechnung = belegeFolderRechnung ?? settings?.documents_folder_rechnung ?? '/FLOX/Belege/Rechnungen'
+  const effectiveBelegeFolderAngebot = belegeFolderAngebot ?? settings?.documents_folder_angebot ?? '/FLOX/Belege/Angebote'
 
   const handleSave = async () => {
     setSaving(true)
@@ -51,6 +90,20 @@ export default function SetupPage() {
       await setSetting.mutateAsync({ key: 'default_belege_folder_ausgang', value: effectiveBelegeFolderAusgang })
       await setSetting.mutateAsync({ key: 'default_belege_folder_sonstiges', value: effectiveBelegeFolderSonstiges })
       await setSetting.mutateAsync({ key: 'buchungs_prompt', value: effectiveBuchungsPrompt })
+      // Firmendaten
+      await setSetting.mutateAsync({ key: 'firma_name', value: effectiveFirmaName })
+      await setSetting.mutateAsync({ key: 'firma_strasse', value: effectiveFirmaStrasse })
+      await setSetting.mutateAsync({ key: 'firma_plz', value: effectiveFirmaPlz })
+      await setSetting.mutateAsync({ key: 'firma_ort', value: effectiveFirmaOrt })
+      await setSetting.mutateAsync({ key: 'firma_land', value: effectiveFirmaLand })
+      await setSetting.mutateAsync({ key: 'firma_steuernummer', value: effectiveFirmaSteuernummer })
+      await setSetting.mutateAsync({ key: 'firma_ustid', value: effectiveFirmaUstid })
+      await setSetting.mutateAsync({ key: 'firma_bankname', value: effectiveFirmaBankname })
+      await setSetting.mutateAsync({ key: 'firma_iban', value: effectiveFirmaIban })
+      await setSetting.mutateAsync({ key: 'firma_bic', value: effectiveFirmaBic })
+      // Beleg-Verzeichnisse
+      await setSetting.mutateAsync({ key: 'documents_folder_rechnung', value: effectiveBelegeFolderRechnung })
+      await setSetting.mutateAsync({ key: 'documents_folder_angebot', value: effectiveBelegeFolderAngebot })
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch (err: any) {
@@ -83,6 +136,80 @@ export default function SetupPage() {
       )}
 
       <div className="grid gap-6">
+
+        {/* Firmendaten */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-blue-600" />
+              Firmendaten
+            </CardTitle>
+            <p className="text-sm text-gray-500 mt-0.5">
+              Diese Daten werden auf Rechnungen und Angeboten verwendet.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div>
+              <Label>Firmenname *</Label>
+              <Input className="mt-1" value={isLoading ? '' : effectiveFirmaName}
+                onChange={e => setFirmaName(e.target.value)} placeholder="z.B. natureandfriends am Üdersee GmbH" disabled={isLoading} />
+            </div>
+            <div>
+              <Label>Straße & Hausnummer</Label>
+              <Input className="mt-1" value={isLoading ? '' : effectiveFirmaStrasse}
+                onChange={e => setFirmaStrasse(e.target.value)} placeholder="z.B. Musterstraße 1" disabled={isLoading} />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label>PLZ</Label>
+                <Input className="mt-1" value={isLoading ? '' : effectiveFirmaPlz}
+                  onChange={e => setFirmaPlz(e.target.value)} placeholder="12345" disabled={isLoading} />
+              </div>
+              <div className="col-span-2">
+                <Label>Ort</Label>
+                <Input className="mt-1" value={isLoading ? '' : effectiveFirmaOrt}
+                  onChange={e => setFirmaOrt(e.target.value)} placeholder="Musterstadt" disabled={isLoading} />
+              </div>
+            </div>
+            <div>
+              <Label>Land</Label>
+              <Input className="mt-1" value={isLoading ? '' : effectiveFirmaLand}
+                onChange={e => setFirmaLand(e.target.value)} placeholder="Deutschland" disabled={isLoading} />
+            </div>
+
+            <div className="border-t pt-4 grid grid-cols-2 gap-3">
+              <div>
+                <Label>Steuernummer</Label>
+                <Input className="mt-1 font-mono" value={isLoading ? '' : effectiveFirmaSteuernummer}
+                  onChange={e => setFirmaSteuernummer(e.target.value)} placeholder="12/345/67890" disabled={isLoading} />
+              </div>
+              <div>
+                <Label>USt-IdNr.</Label>
+                <Input className="mt-1 font-mono" value={isLoading ? '' : effectiveFirmaUstid}
+                  onChange={e => setFirmaUstid(e.target.value)} placeholder="DE123456789" disabled={isLoading} />
+              </div>
+            </div>
+
+            <div className="border-t pt-4 space-y-3">
+              <p className="text-sm font-medium text-gray-700">Bankverbindung</p>
+              <div>
+                <Label>Bank</Label>
+                <Input className="mt-1" value={isLoading ? '' : effectiveFirmaBankname}
+                  onChange={e => setFirmaBankname(e.target.value)} placeholder="z.B. Sparkasse Musterstadt" disabled={isLoading} />
+              </div>
+              <div>
+                <Label>IBAN</Label>
+                <Input className="mt-1 font-mono tracking-wider" value={isLoading ? '' : effectiveFirmaIban}
+                  onChange={e => setFirmaIban(e.target.value)} placeholder="DE12 3456 7890 1234 5678 90" disabled={isLoading} />
+              </div>
+              <div>
+                <Label>BIC</Label>
+                <Input className="mt-1 font-mono" value={isLoading ? '' : effectiveFirmaBic}
+                  onChange={e => setFirmaBic(e.target.value)} placeholder="MUSTDEXXXX" disabled={isLoading} />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Verzeichnis-Einstellungen */}
         <Card>
@@ -182,6 +309,32 @@ export default function SetupPage() {
               </div>
             </div>
 
+            {/* Ausgangsbeleg-Verzeichnisse (Belege-Modul) */}
+            <div className="border rounded-lg p-4 space-y-3 bg-blue-50 border-blue-100">
+              <p className="text-sm font-medium text-blue-800">🧾 Verzeichnisse für Ausgangsbelege (Rechnungen & Angebote)</p>
+              <p className="text-xs text-blue-600">PDF-Belege aus dem Belege-Modul werden in diese Verzeichnisse hochgeladen.</p>
+
+              <div>
+                <Label className="text-xs">Rechnungen</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Input value={isLoading ? 'Lädt...' : effectiveBelegeFolderRechnung} readOnly className="flex-1 font-mono text-sm bg-white" />
+                  <Button variant="outline" size="sm" onClick={() => setShowBelegePickerRechnung(true)} className="gap-2 flex-shrink-0" disabled={isLoading}>
+                    <FolderOpen className="h-4 w-4" />Ändern
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-xs">Angebote</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Input value={isLoading ? 'Lädt...' : effectiveBelegeFolderAngebot} readOnly className="flex-1 font-mono text-sm bg-white" />
+                  <Button variant="outline" size="sm" onClick={() => setShowBelegePickerAngebot(true)} className="gap-2 flex-shrink-0" disabled={isLoading}>
+                    <FolderOpen className="h-4 w-4" />Ändern
+                  </Button>
+                </div>
+              </div>
+            </div>
+
           </CardContent>
         </Card>
 
@@ -261,6 +414,20 @@ export default function SetupPage() {
           initialPath={effectiveDocumentsFolder}
           onSelect={(path) => { setDocumentsFolder(path); setShowDocumentsPicker(false) }}
           onClose={() => setShowDocumentsPicker(false)}
+        />
+      )}
+      {showBelegePickerRechnung && (
+        <FolderPicker
+          initialPath={effectiveBelegeFolderRechnung}
+          onSelect={(path) => { setBelegeFolderRechnung(path); setShowBelegePickerRechnung(false) }}
+          onClose={() => setShowBelegePickerRechnung(false)}
+        />
+      )}
+      {showBelegePickerAngebot && (
+        <FolderPicker
+          initialPath={effectiveBelegeFolderAngebot}
+          onSelect={(path) => { setBelegeFolderAngebot(path); setShowBelegePickerAngebot(false) }}
+          onClose={() => setShowBelegePickerAngebot(false)}
         />
       )}
     </div>
