@@ -276,7 +276,7 @@ export default function SetupPage() {
             {/* Typspezifische Belegverzeichnisse */}
             <div className="border rounded-lg p-4 space-y-3 bg-gray-50">
               <p className="text-sm font-medium text-gray-700">Belegverzeichnisse nach Typ</p>
-              <p className="text-xs text-gray-400">Der FilePicker öffnet automatisch das passende Verzeichnis je nach gewähltem Belegtyp im Buchungssatz.</p>
+              <p className="text-xs text-gray-400">Der FilePicker öffnet automatisch das passende Verzeichnis je nach Belegtyp. PDF-Ausgangsbelege werden ebenfalls hier abgelegt.</p>
 
               <div>
                 <Label className="text-xs">📥 Eingangsrechnungen</Label>
@@ -307,15 +307,9 @@ export default function SetupPage() {
                   </Button>
                 </div>
               </div>
-            </div>
-
-            {/* Ausgangsbeleg-Verzeichnisse (Belege-Modul) */}
-            <div className="border rounded-lg p-4 space-y-3 bg-blue-50 border-blue-100">
-              <p className="text-sm font-medium text-blue-800">🧾 Verzeichnisse für Ausgangsbelege (Rechnungen & Angebote)</p>
-              <p className="text-xs text-blue-600">PDF-Belege aus dem Belege-Modul werden in diese Verzeichnisse hochgeladen.</p>
 
               <div>
-                <Label className="text-xs">Rechnungen</Label>
+                <Label className="text-xs">🧾 Rechnungen (PDF-Ausgangsbelege)</Label>
                 <div className="flex items-center gap-2 mt-1">
                   <Input value={isLoading ? 'Lädt...' : effectiveBelegeFolderRechnung} readOnly className="flex-1 font-mono text-sm bg-white" />
                   <Button variant="outline" size="sm" onClick={() => setShowBelegePickerRechnung(true)} className="gap-2 flex-shrink-0" disabled={isLoading}>
@@ -325,7 +319,7 @@ export default function SetupPage() {
               </div>
 
               <div>
-                <Label className="text-xs">Angebote</Label>
+                <Label className="text-xs">📋 Angebote (PDF-Ausgangsbelege)</Label>
                 <div className="flex items-center gap-2 mt-1">
                   <Input value={isLoading ? 'Lädt...' : effectiveBelegeFolderAngebot} readOnly className="flex-1 font-mono text-sm bg-white" />
                   <Button variant="outline" size="sm" onClick={() => setShowBelegePickerAngebot(true)} className="gap-2 flex-shrink-0" disabled={isLoading}>
