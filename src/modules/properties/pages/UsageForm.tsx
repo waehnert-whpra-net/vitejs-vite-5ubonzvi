@@ -282,7 +282,8 @@ const RENTAL_PERIODS = ['pro Woche', 'pro Monat', 'einmalig', 'pro Tag', 'pro Ta
       )
       const json = await res.json()
       if (!json.success) throw new Error(json.error ?? 'Fehler beim Erstellen des Verzeichnisses')
-      setForm(f => ({ ...f, link_url: json.webUrl ?? '', link_label: folderName }))
+      if (!json.webUrl) throw new Error('Verzeichnis erstellt, aber keine URL erhalten. Bitte Supabase Edge Function aktualisieren.')
+      setForm(f => ({ ...f, link_url: json.webUrl, link_label: folderName }))
     } catch (err: any) {
       setFolderError(err.message ?? 'Unbekannter Fehler')
     } finally {

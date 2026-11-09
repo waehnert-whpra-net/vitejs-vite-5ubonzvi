@@ -192,7 +192,8 @@ export default function GroupUsageForm() {
       )
       const json = await res.json()
       if (!json.success) throw new Error(json.error ?? 'Fehler beim Erstellen des Verzeichnisses')
-      setForm((f: any) => ({ ...f, sharepoint_url: json.webUrl ?? '' }))
+      if (!json.webUrl) throw new Error('Verzeichnis erstellt, aber keine URL erhalten. Bitte Supabase Edge Function aktualisieren.')
+      setForm((f: any) => ({ ...f, sharepoint_url: json.webUrl }))
     } catch (err: any) {
       setFolderError(err.message ?? 'Unbekannter Fehler')
     } finally {

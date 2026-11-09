@@ -248,7 +248,7 @@ serve(async (req) => {
           )
         }
         return new Response(
-          JSON.stringify({ success: true, id: createData.id, name: createData.name }),
+          JSON.stringify({ success: true, id: createData.id, name: createData.name, webUrl: createData.webUrl }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
