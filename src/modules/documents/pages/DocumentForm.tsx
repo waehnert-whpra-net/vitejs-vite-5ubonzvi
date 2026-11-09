@@ -432,22 +432,26 @@ export default function DocumentForm() {
             <Card>
               <CardHeader><CardTitle className="text-base">Belegtyp</CardTitle></CardHeader>
               <CardContent>
-                <div className="flex gap-2">
-                  {docTypes.map(t => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => setDocTypeId(t.id)}
-                      className={`px-5 py-2 rounded-lg border-2 font-medium text-sm transition-colors ${
-                        docTypeId === t.id
-                          ? 'border-blue-500 bg-blue-50 text-blue-700'
-                          : 'border-gray-200 text-gray-600 hover:border-blue-200'
-                      }`}
-                    >
-                      {t.name}
-                    </button>
-                  ))}
-                </div>
+                {docTypes.length === 0 ? (
+                  <p className="text-sm text-gray-400">Keine Belegtypen vorhanden – bitte zuerst im Setup anlegen.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {docTypes.map(t => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setDocTypeId(t.id)}
+                        className={`px-5 py-2 rounded-lg border-2 font-medium text-sm transition-colors ${
+                          docTypeId === t.id
+                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                            : 'border-gray-200 text-gray-600 hover:border-blue-200'
+                        }`}
+                      >
+                        {t.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
@@ -499,9 +503,9 @@ export default function DocumentForm() {
             </CardHeader>
             <CardContent className="space-y-2 p-3">
               {/* Header */}
-              <div className="grid text-xs font-semibold text-gray-400 uppercase tracking-wide px-2"
+              <div className="grid gap-1 text-xs font-semibold text-gray-400 uppercase tracking-wide px-2"
                 style={{ gridTemplateColumns: '2.5rem 1fr 5rem 7rem 5rem 2rem' }}>
-                <span>Nr.</span>
+                <span className="text-center">Nr.</span>
                 <span>Bezeichnung</span>
                 <span className="text-right">Menge</span>
                 <span className="text-right">Brutto-EP</span>
@@ -639,7 +643,7 @@ export default function DocumentForm() {
         </div>
 
         {/* Rechte Spalte */}
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
 
           {/* Empfänger */}
           <Card>
@@ -723,12 +727,12 @@ export default function DocumentForm() {
             </CardContent>
           </Card>
 
-          {/* Notizen */}
-          <Card>
+          {/* Notizen – füllt verbleibende Höhe */}
+          <Card className="flex flex-col flex-1">
             <CardHeader><CardTitle className="text-base">Interne Notizen</CardTitle></CardHeader>
-            <CardContent>
+            <CardContent className="flex flex-col flex-1 pb-4">
               <textarea
-                className="w-full min-h-20 p-3 rounded-md border border-input bg-background text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                className="flex-1 w-full min-h-24 p-3 rounded-md border border-input bg-background text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
                 disabled={isFinalized}
