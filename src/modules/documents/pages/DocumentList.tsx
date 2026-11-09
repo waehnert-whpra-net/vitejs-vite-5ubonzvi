@@ -14,7 +14,7 @@ function fmtDate(iso: string | null | undefined) {
 
 export default function DocumentList() {
   const navigate = useNavigate()
-  const { data: documents = [], isLoading } = useDocuments()
+  const { data: documents = [], isLoading, error: docsError } = useDocuments()
   const { data: docTypes = [] } = useDocumentTypes()
   const deleteDocument = useDeleteDocument()
   const [search, setSearch] = useState('')
@@ -39,6 +39,11 @@ export default function DocumentList() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
+      {docsError && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+          Fehler beim Laden: {(docsError as any)?.message ?? String(docsError)}
+        </div>
+      )}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Belege</h1>

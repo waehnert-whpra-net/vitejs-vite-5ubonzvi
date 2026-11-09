@@ -244,17 +244,28 @@ export default function DocumentForm() {
 
   // ─── PDF erstellen ──────────────────────────────────────────────────────────
   const handleCreatePdf = async () => {
-    if (!id || !existing) {
-      setPdfError('Beleg noch nicht geladen. Bitte kurz warten.')
+    if (!id) return
+    setCreatingPdf(true); setPdfError(null)
+
+    // Beleg direkt aus der DB laden (nicht auf React Query Cache angewiesen)
+    const { data: freshDoc, error: fetchErr } = await supabase
+      .from('documents')
+      .select(`*, document_type:document_types(*), contact:contacts(id, first_name, last_name, company_name, is_company, address_street, address_zip, address_city, address_country)`)
+      .eq('id', id)
+      .single()
+    if (fetchErr || !freshDoc) {
+      setPdfError('Beleg konnte nicht geladen werden: ' + (fetchErr?.message ?? 'unbekannt'))
+      setCreatingPdf(false)
       return
     }
-    if (!existing.document_type) {
-      setPdfError('Belegtyp nicht geladen.')
-      return
-    }
-    // Items entweder aus existing oder aus lokalem State nehmen
-    const pdfItems = (existing.items && existing.items.length > 0)
-      ? existing.items
+    const { data: freshItems } = await supabase
+      .from('document_items')
+      .select('*')
+      .eq('document_id', id)
+      .order('position')
+
+    const pdfItems = (freshItems && freshItems.length > 0)
+      ? freshItems
       : items
           .filter(it => it.description.trim() && it.gross_unit_price)
           .map((it, i) => ({
@@ -267,12 +278,21 @@ export default function DocumentForm() {
             vat_rate: parseFloat(it.vat_rate) || 0,
             article_id: it.article_id,
           }))
+
     if (pdfItems.length === 0) {
       setPdfError('Keine Positionen vorhanden. Bitte zuerst speichern.')
+      setCreatingPdf(false)
+      return
+    }
+    if (!(freshDoc as any).document_type) {
+      setPdfError('Belegtyp nicht geladen.')
+      setCreatingPdf(false)
       return
     }
 
-    setCreatingPdf(true); setPdfError(null)
+    // existing für den Rest der Funktion überschreiben
+    const effectiveDoc = { ...freshDoc, items: pdfItems } as any
+
     try {
       // ── Firmendaten aus Settings ──
       const firma: FirmaData = {
@@ -292,32 +312,19 @@ export default function DocumentForm() {
       }
 
       // ── 1. PDF im Browser erzeugen ──
-      const docForPdf = {
-        ...existing,
-        document_type: existing.document_type,
-        items: pdfItems,
-      } as any
-
-      let pdfBlob = await generateDocumentPdfBlob(docForPdf, firma)
+      let pdfBlob = await generateDocumentPdfBlob(effectiveDoc, firma)
 
       // ── 2. ZUGFeRD XML einbetten (nur bei Rechnungen) ──
-      if (existing.document_type.name === 'Rechnung') {
-        const xmlString = buildZugferdXml(docForPdf, firma)
+      if (effectiveDoc.document_type.name === 'Rechnung') {
+        const xmlString = buildZugferdXml(effectiveDoc, firma)
         pdfBlob = await embedZugferdXml(pdfBlob, xmlString)
       }
 
       // ── 3. PDF-Dateiname bestimmen ──
-      const fileName = `${existing.document_number}.pdf`
+      const fileName = `${effectiveDoc.document_number}.pdf`
 
       // ── 4. Upload-Verzeichnis ermitteln ──
-      // Priorität: verknüpfte Nutzung → Typ-spezifisches Verzeichnis
-      let uploadFolder: string | null = null
-      if (usageId && linkedUsage?.link_url) {
-        // Wenn die Nutzung ein SharePoint-Verzeichnis hat, dorthin hochladen
-        // link_url ist die SharePoint WebUrl des Ordners
-        uploadFolder = null  // graph-service erkennt folder_url direkt
-      }
-      const typeFolderKey = existing.document_type.name === 'Rechnung'
+      const typeFolderKey = effectiveDoc.document_type.name === 'Rechnung'
         ? 'documents_folder_rechnung'
         : 'documents_folder_angebot'
       const typeFolder = appSettings?.[typeFolderKey] ?? null
