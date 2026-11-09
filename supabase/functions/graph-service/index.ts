@@ -225,23 +225,37 @@ serve(async (req) => {
       case 'createFolder': {
         // payload: { path: string, name: string } - erstellt Unterordner
         const encodedPath = payload.path && payload.path !== '/' ? payload.path : ''
-        const url = encodedPath
+        const createUrl = encodedPath
           ? `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/root:${encodedPath}:/children`
           : `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/root/children`
-        const createRes = await fetch(url, {
+        const createRes = await fetch(createUrl, {
           method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name: payload.name,
-            folder: {},
-            '@microsoft.graph.conflictBehavior': 'fail',
-          }),
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: payload.name, folder: {}, '@microsoft.graph.conflictBehavior': 'fail' }),
         })
         const createData = await createRes.json()
+
+        // Ordner existiert bereits → bestehenden Ordner holen und dessen webUrl zurückgeben
         if (!createRes.ok) {
+          const isConflict = createData?.error?.code === 'nameAlreadyExists'
+          if (isConflict) {
+            const existingPath = encodedPath ? `${encodedPath}/${payload.name}` : `/${payload.name}`
+            const existRes = await fetch(
+              `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/root:${existingPath}?$select=id,name,webUrl`,
+              { headers: { Authorization: `Bearer ${token}` } }
+            )
+            const existData = await existRes.json()
+            if (!existRes.ok) {
+              return new Response(
+                JSON.stringify({ success: false, error: JSON.stringify(existData) }),
+                { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              )
+            }
+            return new Response(
+              JSON.stringify({ success: true, id: existData.id, name: existData.name, webUrl: existData.webUrl, alreadyExisted: true }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
+          }
           return new Response(
             JSON.stringify({ success: false, error: JSON.stringify(createData) }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
