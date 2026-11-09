@@ -9,7 +9,7 @@ import { FolderOpen, Save, Settings, Building2 } from 'lucide-react'
 
 const SETTING_KEYS = [
   'default_template_folder', 'default_documents_folder', 'default_belege_folder',
-  'default_belege_folder_eingang', 'default_belege_folder_ausgang', 'default_belege_folder_sonstiges',
+  'default_belege_folder_eingang', 'default_belege_folder_sonstiges',
   'buchungs_prompt',
   // Firmendaten
   'firma_name', 'firma_strasse', 'firma_plz', 'firma_ort', 'firma_land',
@@ -26,7 +26,7 @@ export default function SetupPage() {
   const [documentsFolder, setDocumentsFolder] = useState<string | null>(null)
   const [belegeFolder, setBelegeFolder] = useState<string | null>(null)
   const [belegeFolderEingang, setBelegeFolderEingang] = useState<string | null>(null)
-  const [belegeFolderAusgang, setBelegeFolderAusgang] = useState<string | null>(null)
+
   const [belegeFolderSonstiges, setBelegeFolderSonstiges] = useState<string | null>(null)
   const [buchungsPrompt, setBuchungsPrompt] = useState<string | null>(null)
   // Firmendaten
@@ -47,7 +47,7 @@ export default function SetupPage() {
   const [showBelegePickerAngebot, setShowBelegePickerAngebot] = useState(false)
   const [showBelegePicker, setShowBelegePicker] = useState(false)
   const [showBelegePickerEingang, setShowBelegePickerEingang] = useState(false)
-  const [showBelegePickerAusgang, setShowBelegePickerAusgang] = useState(false)
+
   const [showBelegePickerSonstiges, setShowBelegePickerSonstiges] = useState(false)
   const [showTemplatePicker, setShowTemplatePicker] = useState(false)
   const [showDocumentsPicker, setShowDocumentsPicker] = useState(false)
@@ -60,7 +60,7 @@ export default function SetupPage() {
   const effectiveDocumentsFolder = documentsFolder ?? settings?.default_documents_folder ?? '/FLOX/Dokumente'
   const effectiveBelegeFolder = belegeFolder ?? settings?.default_belege_folder ?? '/FLOX/Belege'
   const effectiveBelegeFolderEingang = belegeFolderEingang ?? settings?.default_belege_folder_eingang ?? '/FLOX/Belege/Eingangsrechnungen'
-  const effectiveBelegeFolderAusgang = belegeFolderAusgang ?? settings?.default_belege_folder_ausgang ?? '/FLOX/Belege/Ausgangsrechnungen'
+
   const effectiveBelegeFolderSonstiges = belegeFolderSonstiges ?? settings?.default_belege_folder_sonstiges ?? '/FLOX/Belege/Sonstiges'
   const effectiveBuchungsPrompt = buchungsPrompt ?? settings?.buchungs_prompt ?? ''
   // Firmendaten effektive Werte
@@ -87,7 +87,7 @@ export default function SetupPage() {
       await setSetting.mutateAsync({ key: 'default_documents_folder', value: effectiveDocumentsFolder })
       await setSetting.mutateAsync({ key: 'default_belege_folder', value: effectiveBelegeFolder })
       await setSetting.mutateAsync({ key: 'default_belege_folder_eingang', value: effectiveBelegeFolderEingang })
-      await setSetting.mutateAsync({ key: 'default_belege_folder_ausgang', value: effectiveBelegeFolderAusgang })
+
       await setSetting.mutateAsync({ key: 'default_belege_folder_sonstiges', value: effectiveBelegeFolderSonstiges })
       await setSetting.mutateAsync({ key: 'buchungs_prompt', value: effectiveBuchungsPrompt })
       // Firmendaten
@@ -289,16 +289,6 @@ export default function SetupPage() {
               </div>
 
               <div>
-                <Label className="text-xs">📤 Ausgangsrechnungen</Label>
-                <div className="flex items-center gap-2 mt-1">
-                  <Input value={isLoading ? 'Lädt...' : effectiveBelegeFolderAusgang} readOnly className="flex-1 font-mono text-sm bg-white" />
-                  <Button variant="outline" size="sm" onClick={() => setShowBelegePickerAusgang(true)} className="gap-2 flex-shrink-0" disabled={isLoading}>
-                    <FolderOpen className="h-4 w-4" />Ändern
-                  </Button>
-                </div>
-              </div>
-
-              <div>
                 <Label className="text-xs">📁 Sonstiges</Label>
                 <div className="flex items-center gap-2 mt-1">
                   <Input value={isLoading ? 'Lädt...' : effectiveBelegeFolderSonstiges} readOnly className="flex-1 font-mono text-sm bg-white" />
@@ -387,13 +377,6 @@ export default function SetupPage() {
           initialPath={effectiveBelegeFolderEingang}
           onSelect={(path) => { setBelegeFolderEingang(path); setShowBelegePickerEingang(false) }}
           onClose={() => setShowBelegePickerEingang(false)}
-        />
-      )}
-      {showBelegePickerAusgang && (
-        <FolderPicker
-          initialPath={effectiveBelegeFolderAusgang}
-          onSelect={(path) => { setBelegeFolderAusgang(path); setShowBelegePickerAusgang(false) }}
-          onClose={() => setShowBelegePickerAusgang(false)}
         />
       )}
       {showBelegePickerSonstiges && (
