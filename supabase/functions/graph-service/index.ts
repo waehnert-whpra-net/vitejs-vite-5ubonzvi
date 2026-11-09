@@ -284,6 +284,86 @@ serve(async (req) => {
         )
       }
 
+      case 'uploadPdf': {
+        // payload:
+        //   fileName: string          – z.B. "RE-2026-001.pdf"
+        //   pdfBase64: string         – PDF-Inhalt als base64
+        //   folderUrl?: string        – SharePoint webUrl eines Ordners (Priorität)
+        //   folderPath?: string       – SharePoint-Pfad relativ zum Drive-Root (Fallback)
+        //
+        // Ziel-Pfad-Auflösung:
+        //   1. folderUrl  → Drive-Item-ID per Graph-API, dann upload via ID
+        //   2. folderPath → direkt als Drive-Pfad verwenden
+        //   3. kein Verzeichnis → ins Drive-Root hochladen
+
+        const { fileName, pdfBase64, folderUrl, folderPath } = payload
+        if (!fileName) throw new Error('uploadPdf: fileName fehlt')
+        if (!pdfBase64) throw new Error('uploadPdf: pdfBase64 fehlt')
+
+        // PDF-Bytes dekodieren
+        const pdfBin = atob(pdfBase64)
+        const pdfBytes = new Uint8Array(pdfBin.length)
+        for (let i = 0; i < pdfBin.length; i++) {
+          pdfBytes[i] = pdfBin.charCodeAt(i)
+        }
+
+        let uploadUrl: string
+
+        if (folderUrl) {
+          // Drive-Item über webUrl ermitteln
+          // webUrl-Format: https://whpraede.sharepoint.com/...
+          // → graph.microsoft.com/v1.0/drives/{id}/items/{itemId}/children
+          const metaRes = await fetch(
+            `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/root?$select=id,webUrl`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          )
+          const metaData = await metaRes.json()
+          const rootWebUrl: string = metaData.webUrl ?? ''
+
+          // Relativen Pfad aus folderUrl extrahieren
+          // rootWebUrl z.B. "https://whpraede.sharepoint.com/sites/WHPAkten/Freigegebene%20Dokumente"
+          // folderUrl  z.B. "https://whpraede.sharepoint.com/sites/WHPAkten/Freigegebene%20Dokumente/FLOX/Rechnungen"
+          const relPath = decodeURIComponent(folderUrl.replace(rootWebUrl, ''))
+          const cleanPath = relPath.replace(/^\/+/, '')
+          uploadUrl = cleanPath
+            ? `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/root:/${cleanPath}/${fileName}:/content`
+            : `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/root:/${fileName}:/content`
+        } else if (folderPath) {
+          const cleanFP = folderPath.replace(/^\/+/, '').replace(/\/+$/, '')
+          uploadUrl = cleanFP
+            ? `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/root:/${cleanFP}/${fileName}:/content`
+            : `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/root:/${fileName}:/content`
+        } else {
+          uploadUrl = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/root:/${fileName}:/content`
+        }
+
+        const uploadRes = await fetch(uploadUrl, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/pdf',
+          },
+          body: pdfBytes.buffer,
+        })
+
+        if (!uploadRes.ok) {
+          const errText = await uploadRes.text()
+          throw new Error(`PDF-Upload fehlgeschlagen: ${errText}`)
+        }
+
+        const uploadData = await uploadRes.json()
+        return new Response(
+          JSON.stringify({
+            success: true,
+            webUrl: uploadData.webUrl,
+            downloadUrl: uploadData['@microsoft.graph.downloadUrl'],
+            id: uploadData.id,
+            name: uploadData.name,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
       case 'sendMail': {
         // payload: { to: string[], subject: string, body: string }
         await sendMail(token, payload.to, payload.subject, payload.body)

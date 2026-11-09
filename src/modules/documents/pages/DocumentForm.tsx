@@ -10,6 +10,9 @@ import { useContacts } from '@/hooks/useContacts'
 import { usePropertyUsage } from '@/modules/properties/hooks/useProperties'
 import { useAppSettings } from '@/hooks/useAppSettings'
 import { supabase } from '@/lib/supabase'
+import { generateDocumentPdfBlob, type FirmaData } from '@/modules/documents/pdf/DocumentPdf'
+import { buildZugferdXml } from '@/modules/documents/pdf/ZugferdXml'
+import { embedZugferdXml } from '@/modules/documents/pdf/embedZugferd'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -73,6 +76,8 @@ export default function DocumentForm() {
   const { data: appSettings } = useAppSettings([
     'documents_folder_rechnung',
     'documents_folder_angebot',
+    'firma_name', 'firma_strasse', 'firma_plz', 'firma_ort', 'firma_land',
+    'firma_steuernummer', 'firma_ustid', 'firma_bankname', 'firma_iban', 'firma_bic',
   ])
 
   const createDoc = useCreateDocument()
@@ -239,29 +244,112 @@ export default function DocumentForm() {
 
   // ─── PDF erstellen ──────────────────────────────────────────────────────────
   const handleCreatePdf = async () => {
-    if (!id) return
-    // Verzeichnis-Check wenn mit Nutzung verknüpft
-    if (usageId && !linkedUsage?.link_url) {
-      setPdfError('Die verknüpfte Nutzung hat noch kein Dokumentenverzeichnis. Bitte zuerst dort ein Verzeichnis erstellen.')
+    if (!id || !existing) return
+    if (!existing.items || existing.items.length === 0) {
+      setPdfError('Keine Positionen vorhanden. Bitte zuerst speichern.')
       return
     }
+    if (!existing.document_type) {
+      setPdfError('Belegtyp nicht geladen.')
+      return
+    }
+
     setCreatingPdf(true); setPdfError(null)
     try {
+      // ── Firmendaten aus Settings ──
+      const firma: FirmaData = {
+        name:              appSettings?.firma_name        ?? 'natureandfriends am Üdersee GmbH',
+        strasse:           appSettings?.firma_strasse     ?? 'Üdersee Süd 111',
+        plz:               appSettings?.firma_plz         ?? '16244',
+        ort:               appSettings?.firma_ort         ?? 'Schorfheide',
+        land:              appSettings?.firma_land        ?? 'Deutschland',
+        steuernummer:      appSettings?.firma_steuernummer ?? undefined,
+        ustid:             appSettings?.firma_ustid        ?? undefined,
+        bankname:          appSettings?.firma_bankname    ?? 'Deutsche Bank AG',
+        iban:              appSettings?.firma_iban        ?? 'DE42100700240627944200',
+        bic:               appSettings?.firma_bic         ?? undefined,
+        website:           'www.natureandfriends.de',
+        handelsregister:   'AG Charlottenburg HRB 108817 B',
+        geschaeftsfuehrer: 'Oliver Reetz',
+      }
+
+      // ── 1. PDF im Browser erzeugen ──
+      const docForPdf = {
+        ...existing,
+        document_type: existing.document_type,
+        items: existing.items,
+      } as any
+
+      let pdfBlob = await generateDocumentPdfBlob(docForPdf, firma)
+
+      // ── 2. ZUGFeRD XML einbetten (nur bei Rechnungen) ──
+      if (existing.document_type.name === 'Rechnung') {
+        const xmlString = buildZugferdXml(docForPdf, firma)
+        pdfBlob = await embedZugferdXml(pdfBlob, xmlString)
+      }
+
+      // ── 3. PDF-Dateiname bestimmen ──
+      const fileName = `${existing.document_number}.pdf`
+
+      // ── 4. Upload-Verzeichnis ermitteln ──
+      // Priorität: verknüpfte Nutzung → Typ-spezifisches Verzeichnis
+      let uploadFolder: string | null = null
+      if (usageId && linkedUsage?.link_url) {
+        // Wenn die Nutzung ein SharePoint-Verzeichnis hat, dorthin hochladen
+        // link_url ist die SharePoint WebUrl des Ordners
+        uploadFolder = null  // graph-service erkennt folder_url direkt
+      }
+      const typeFolderKey = existing.document_type.name === 'Rechnung'
+        ? 'documents_folder_rechnung'
+        : 'documents_folder_angebot'
+      const typeFolder = appSettings?.[typeFolderKey] ?? null
+
+      // ── 5. Upload via graph-service ──
       const { data: { session } } = await supabase.auth.getSession()
+
+      // PDF als base64 für JSON-Transport
+      const pdfArrayBuffer = await pdfBlob.arrayBuffer()
+      const pdfBase64 = btoa(String.fromCharCode(...new Uint8Array(pdfArrayBuffer)))
+
       const res = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/graph-service`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
-          body: JSON.stringify({ action: 'createDocumentPdf', payload: { documentId: id } }),
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            action: 'uploadPdf',
+            payload: {
+              fileName,
+              pdfBase64,
+              // Zielverzeichnis: Nutzungs-Ordner hat Vorrang
+              folderUrl: (usageId && linkedUsage?.link_url) ? linkedUsage.link_url : null,
+              folderPath: (usageId && linkedUsage?.link_url) ? null : typeFolder,
+            },
+          }),
         }
       )
       const json = await res.json()
-      if (!json.success) throw new Error(json.error ?? 'Fehler bei der PDF-Erstellung')
+      if (!json.success) throw new Error(json.error ?? 'Fehler beim PDF-Upload')
 
-      await updateDoc.mutateAsync({ id, is_finalized: true, pdf_path: json.pdfUrl ?? null, pdf_created_at: new Date().toISOString() })
-      // Lokaler Download
-      if (json.downloadUrl) window.open(json.downloadUrl, '_blank')
+      // ── 6. Dokument als finalisiert markieren ──
+      await updateDoc.mutateAsync({
+        id,
+        is_finalized: true,
+        pdf_path: json.webUrl ?? json.downloadUrl ?? null,
+        pdf_created_at: new Date().toISOString(),
+      })
+
+      // ── 7. Direktdownload anbieten ──
+      const url = URL.createObjectURL(pdfBlob)
+      const a   = document.createElement('a')
+      a.href     = url
+      a.download = fileName
+      a.click()
+      URL.revokeObjectURL(url)
+
     } catch (err: any) {
       setPdfError(err.message ?? 'Unbekannter Fehler')
     } finally {
