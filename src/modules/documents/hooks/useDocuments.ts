@@ -102,6 +102,17 @@ export function useSaveDocumentType() {
   })
 }
 
+export function useDeleteDocumentType() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('document_types').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['document_types'] }),
+  })
+}
+
 // ─── Belege ───────────────────────────────────────────────────────────────────
 
 export function useDocuments() {

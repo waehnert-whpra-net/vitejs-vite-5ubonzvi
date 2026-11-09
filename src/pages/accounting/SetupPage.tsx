@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { useAppSettings, useSetAppSetting } from '@/hooks/useAppSettings'
-import { useDocumentTypes, useSaveDocumentType } from '@/modules/documents/hooks/useDocuments'
+import { useDocumentTypes, useSaveDocumentType, useDeleteDocumentType } from '@/modules/documents/hooks/useDocuments'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import FolderPicker from '@/components/FolderPicker'
-import { FolderOpen, Save, Settings, Building2, Plus, Pencil, Check, X } from 'lucide-react'
+import { FolderOpen, Save, Settings, Building2, Plus, Pencil, Check, X, Trash2 } from 'lucide-react'
 
 const SETTING_KEYS = [
   'default_template_folder', 'default_documents_folder', 'default_belege_folder',
@@ -24,12 +24,14 @@ export default function SetupPage() {
   const setSetting = useSetAppSetting()
   const { data: docTypes = [] } = useDocumentTypes()
   const saveDocType = useSaveDocumentType()
+  const deleteDocType = useDeleteDocumentType()
 
   // Belegtypen-Editor
   type DtDraft = { id?: string; name: string; prefix: string; sort_order: string; is_active: boolean }
   const [editingDt, setEditingDt] = useState<DtDraft | null>(null)
   const [dtSaving, setDtSaving] = useState(false)
   const [dtError, setDtError] = useState<string | null>(null)
+  const [confirmDeleteDt, setConfirmDeleteDt] = useState<string | null>(null)
 
   const startNewDt = () => setEditingDt({ name: '', prefix: '', sort_order: String((docTypes.length + 1) * 10), is_active: true })
   const startEditDt = (dt: typeof docTypes[0]) => setEditingDt({ id: dt.id, name: dt.name, prefix: dt.prefix, sort_order: String(dt.sort_order), is_active: dt.is_active })
@@ -272,6 +274,33 @@ export default function SetupPage() {
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
+                  {confirmDeleteDt === dt.id ? (
+                    <span className="flex items-center gap-1">
+                      <span className="text-xs text-red-600">Löschen?</span>
+                      <button
+                        type="button"
+                        onClick={async () => { await deleteDocType.mutateAsync(dt.id); setConfirmDeleteDt(null) }}
+                        className="text-red-500 hover:text-red-700 p-1 rounded"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteDt(null)}
+                        className="text-gray-400 hover:text-gray-600 p-1 rounded"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteDt(dt.id)}
+                      className="text-gray-300 hover:text-red-500 p-1 rounded"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
